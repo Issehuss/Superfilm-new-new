@@ -62,13 +62,15 @@ export default function ClubSwitcher({ className = "", refreshEpoch = 0 }) {
         const { data: ownedRows } = await supabase
           .from("club_members")
           .select("club_id, user_id, role, joined_at, accepted")
-          .eq("role", "president");
+          .eq("role", "president")
+          .eq("user_id", resolvedUserId);
 
         // Member (admin + member)
         const { data: memberRows } = await supabase
           .from("club_members")
           .select("club_id, user_id, role, joined_at, accepted")
-          .in("role", ["admin", "member"]);
+          .in("role", ["admin", "member"])
+          .eq("user_id", resolvedUserId);
 
         const ownedIds = (ownedRows || []).map((r) => r.club_id).filter(Boolean);
         const memberIds = (memberRows || []).map((r) => r.club_id).filter(Boolean);
