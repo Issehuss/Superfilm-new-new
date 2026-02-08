@@ -1,5 +1,6 @@
 // src/pages/OurSocials.jsx
 import React from "react";
+import { Helmet } from "react-helmet-async";
 
 const socials = [
   {
@@ -25,6 +26,15 @@ const socials = [
 export default function OurSocialsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
+      <Helmet>
+        <title>Our Socials | SuperFilm</title>
+        <meta
+          name="description"
+          content="Follow SuperFilm on Instagram, Twitter, and TikTok to stay up to date."
+        />
+        <link rel="canonical" href="https://superfilm.uk/socials" />
+      </Helmet>
+
       <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-zinc-400">

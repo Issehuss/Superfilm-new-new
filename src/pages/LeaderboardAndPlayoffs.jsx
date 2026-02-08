@@ -1,6 +1,7 @@
 // src/pages/LeaderboardAndPlayoffs.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import supabase from "lib/supabaseClient";
 import { useUser } from "../context/UserContext";
 import { Info } from "lucide-react";
@@ -175,6 +176,15 @@ export default function LeaderboardAndPlayoffs() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
+      <Helmet>
+        <title>Leaderboard | SuperFilm</title>
+        <meta
+          name="description"
+          content="See top film clubs and members on SuperFilm."
+        />
+        <link rel="canonical" href="https://superfilm.uk/leaderboard" />
+      </Helmet>
+
       <button
         onClick={() => navigate(-1)}
         className="mb-4 text-sm text-zinc-400 hover:text-zinc-200"

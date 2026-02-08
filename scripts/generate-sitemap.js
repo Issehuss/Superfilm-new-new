@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const baseUrl = "https://www.superfilm.uk";
+const baseUrl = "https://superfilm.uk";
 const outPath = path.join(__dirname, "..", "public", "sitemap.xml");
 
 const routes = [
@@ -14,6 +14,7 @@ const routes = [
   { path: "/about", changefreq: "monthly", priority: "0.4" },
   { path: "/terms", changefreq: "monthly", priority: "0.3" },
   { path: "/socials", changefreq: "monthly", priority: "0.3" },
+  { path: "/help", changefreq: "monthly", priority: "0.3" },
 ];
 
 const urls = routes

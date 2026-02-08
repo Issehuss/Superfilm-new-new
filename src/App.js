@@ -10,6 +10,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useState, useMemo, useEffect, useRef, Suspense, lazy } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import debounce from "lodash.debounce";
 import { Toaster } from "react-hot-toast";
 import { trackPageView } from "./lib/analytics";
@@ -54,6 +55,7 @@ const EventAttendance = lazy(() => import("./pages/EventAttendance"));
 const SupabasePing = lazy(() => import("./dev/SupabasePing"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
+const DiscoverPage = lazy(() => import("./pages/Discover.jsx"));
 const HomeSignedIn = lazy(() => import("./pages/HomeSignedIn"));
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const ClubChat = lazy(() => import("./pages/ClubChat"));
@@ -298,33 +300,35 @@ export default function AppWrapper() {
   return (
     <AppResumeProvider>
       <UserProvider>
-        <Router>
-          <PageViewTracker />
-          <BetaBanner />
-          <Routes>
-            {/* Onboarding route — renders BEFORE MainShell */}
-            <Route
-              path="/onboarding"
-              element={
-                <Suspense fallback={<Splash />}>
-                  <OnboardingTutorial />
-                </Suspense>
-              }
-            />
+        <HelmetProvider>
+          <Router>
+            <PageViewTracker />
+            <BetaBanner />
+            <Routes>
+              {/* Onboarding route — renders BEFORE MainShell */}
+              <Route
+                path="/onboarding"
+                element={
+                  <Suspense fallback={<Splash />}>
+                    <OnboardingTutorial />
+                  </Suspense>
+                }
+              />
 
-            {/* Everything else */}
-            <Route
-              path="/*"
-              element={
-                <ErrorBoundary fallback={<Splash message="Something went wrong loading the app." />}>
-                  <MainShell />
-                </ErrorBoundary>
-              }
-            />
+              {/* Everything else */}
+              <Route
+                path="/*"
+                element={
+                  <ErrorBoundary fallback={<Splash message="Something went wrong loading the app." />}>
+                    <MainShell />
+                  </ErrorBoundary>
+                }
+              />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+        </HelmetProvider>
       </UserProvider>
     </AppResumeProvider>
   );
@@ -741,6 +745,7 @@ function MainShell() {
             <Route path="/clubs/:slug" element={<ClubProfile />} />
             <Route path="/clubs/:clubParam/takes/archive" element={<ClubTakesArchive />} />
             <Route path="/join/:code" element={<JoinClubInvite />} />
+            <Route path="/discover" element={<DiscoverPage />} />
 
             {/* Premium president-only */}
             <Route

@@ -1,6 +1,7 @@
 // src/pages/Events.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import "./Events.css";
 import supabase from "lib/supabaseClient";
 import useRealtimeResume from "../hooks/useRealtimeResume";
@@ -284,38 +285,49 @@ export default function Events() {
   }, [base, query]);
 
   return (
-    <div className="events-page">
-      <header className="page-head">
-        <div>
-          <h1 className="text-3xl font-bold">Events</h1>
-          <p className="text-zinc-400 mt-1">
-            {loadingLive
-              ? "Loading live events…"
-              : "Find screenings, watch parties and club meetups."}
-          </p>
-        </div>
+    <>
+      <Helmet>
+        <title>Events | SuperFilm</title>
+        <meta
+          name="description"
+          content="Find screenings, watch parties, and club events."
+        />
+        <link rel="canonical" href="https://superfilm.uk/events" />
+      </Helmet>
 
-        <div className="head-actions">
-          <input
-            className="search"
-            placeholder="Search events..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <Link to="/events/new" className="btn primary">
-            List Event
-          </Link>
-        </div>
-      </header>
+      <div className="events-page">
+        <header className="page-head">
+          <div>
+            <h1 className="text-3xl font-bold">Events</h1>
+            <p className="text-zinc-400 mt-1">
+              {loadingLive
+                ? "Loading live events…"
+                : "Find screenings, watch parties and club meetups."}
+            </p>
+          </div>
 
-      <section className="poster-grid">
-        {filtered.map((evt) => (
-          <PosterCard key={`${evt.slug}`} evt={evt} />
-        ))}
-        {filtered.length === 0 && !loadingLive && (
-          <div className="empty">No events found.</div>
-        )}
-      </section>
-    </div>
+          <div className="head-actions">
+            <input
+              className="search"
+              placeholder="Search events..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <Link to="/events/new" className="btn primary">
+              List Event
+            </Link>
+          </div>
+        </header>
+
+        <section className="poster-grid">
+          {filtered.map((evt) => (
+            <PosterCard key={`${evt.slug}`} evt={evt} />
+          ))}
+          {filtered.length === 0 && !loadingLive && (
+            <div className="empty">No events found.</div>
+          )}
+        </section>
+      </div>
+    </>
   );
 }

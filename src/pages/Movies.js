@@ -1,6 +1,7 @@
 // src/pages/Movies.js
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import supabase from "lib/supabaseClient";
 import { useUser } from "../context/UserContext";
 import TmdbImage from "../components/TmdbImage";
@@ -286,6 +287,15 @@ function Movies({ searchQuery = "" }) {
 
   return (
     <div className="p-4">
+      <Helmet>
+        <title>Movies | SuperFilm</title>
+        <meta
+          name="description"
+          content="Browse films and ratings across the SuperFilm community."
+        />
+        <link rel="canonical" href="https://superfilm.uk/movies" />
+      </Helmet>
+
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-3xl font-bold text-yellow-400">
           {searchQuery?.trim()

@@ -1,5 +1,6 @@
 // src/pages/HelpPage.jsx
 import React from "react";
+import { Helmet } from "react-helmet-async";
 
 const contacts = [
   { email: "hussein@superfilm.info", description: "General enquiries, membership, and screening support" },
@@ -9,6 +10,15 @@ const contacts = [
 export default function HelpPage() {
   return (
     <div className="min-h-screen bg-black text-white">
+      <Helmet>
+        <title>Help | SuperFilm</title>
+        <meta
+          name="description"
+          content="Get help and contact the SuperFilm team."
+        />
+        <link rel="canonical" href="https://superfilm.uk/help" />
+      </Helmet>
+
       <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
         <div className="space-y-2">
           <p className="text-sm uppercase tracking-wide text-zinc-400">Need guidance?</p>

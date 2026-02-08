@@ -1,6 +1,7 @@
 // src/pages/AboutPage.jsx
 import React from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 /* -------------------------------------------------------------------------- */
 /*                             About Page Component                           */
@@ -8,13 +9,23 @@ import { Link } from "react-router-dom";
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen w-full bg-black text-zinc-200 py-20 px-6 flex justify-center">
-      {/* Glass panel card */}
-      <div className="max-w-3xl w-full bg-zinc-900/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-zinc-700/40">
-        {/* Title */}
-        <h1 className="text-4xl font-semibold text-superfilm-yellow mb-8">
-          About Us
-        </h1>
+    <>
+      <Helmet>
+        <title>About | SuperFilm</title>
+        <meta
+          name="description"
+          content="Learn about SuperFilm and our global film club network."
+        />
+        <link rel="canonical" href="https://superfilm.uk/about" />
+      </Helmet>
+
+      <div className="min-h-screen w-full bg-black text-zinc-200 py-20 px-6 flex justify-center">
+        {/* Glass panel card */}
+        <div className="max-w-3xl w-full bg-zinc-900/80 backdrop-blur-md rounded-3xl p-10 shadow-xl border border-zinc-700/40">
+          {/* Title */}
+          <h1 className="text-4xl font-semibold text-superfilm-yellow mb-8">
+            About Us
+          </h1>
 
         {/* Paragraphs */}
         <p className="text-lg leading-relaxed mb-4 text-zinc-200 drop-shadow-md">
@@ -53,8 +64,9 @@ export default function AboutPage() {
         <p className="text-2xl leading-relaxed mt-6 text-superfilm-yellow font-extrabold tracking-wider text-center">
           <strong>Doing it TOGETHER.</strong>
         </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -68,14 +80,29 @@ export function SuperFilmFooter() {
       <div className="mx-auto max-w-6xl w-full px-4 flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Left side: links */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link to="/discover" className="hover:text-superfilm-yellow">
+            Discover
+          </Link>
+          <Link to="/clubs" className="hover:text-superfilm-yellow">
+            Clubs
+          </Link>
+          <Link to="/movies" className="hover:text-superfilm-yellow">
+            Movies
+          </Link>
+          <Link to="/events" className="hover:text-superfilm-yellow">
+            Events
+          </Link>
+          <Link to="/leaderboard" className="hover:text-superfilm-yellow">
+            Leaderboard
+          </Link>
           <Link to="/about" className="hover:text-superfilm-yellow">
             About Us
           </Link>
-          <Link to="/terms" className="hover:text-superfilm-yellow">
-            Terms &amp; Conditions
-          </Link>
           <Link to="/socials" className="hover:text-superfilm-yellow">
             Our Socials
+          </Link>
+          <Link to="/terms" className="hover:text-superfilm-yellow">
+            Terms &amp; Conditions
           </Link>
           <Link to="/help" className="hover:text-superfilm-yellow">
             Help

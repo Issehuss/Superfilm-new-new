@@ -1,9 +1,16 @@
 // src/pages/Terms.jsx
 import React from "react";
+import { Helmet } from "react-helmet-async";
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
+      <Helmet>
+        <title>Terms | SuperFilm</title>
+        <meta name="description" content="Read the SuperFilm terms and policies." />
+        <link rel="canonical" href="https://superfilm.uk/terms" />
+      </Helmet>
+
       <div className="max-w-5xl mx-auto px-4 py-10">
         <h1 className="text-3xl font-bold mb-2">SuperFilm — Terms and Conditions</h1>
         <p className="text-sm text-zinc-400 mb-6">Last updated: 2025-01-01</p>

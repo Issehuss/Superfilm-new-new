@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import supabase from "lib/supabaseClient";
 import "../App.css";
 import "./Clubs.css";
@@ -1035,6 +1036,15 @@ export default function Clubs() {
 
   return (
     <div className="clubs2 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] min-h-screen">
+      <Helmet>
+        <title>Clubs | SuperFilm</title>
+        <meta
+          name="description"
+          content="Browse and join film clubs on SuperFilm."
+        />
+        <link rel="canonical" href="https://superfilm.uk/clubs" />
+      </Helmet>
+
       <main className="relative max-w-7xl mx-auto px-3 pt-6 pb-8 sm:px-6 sm:pt-8 sm:pb-10">
         <header className="mb-6 sm:mb-8 flex flex-col gap-2 sm:gap-3">
           <div>

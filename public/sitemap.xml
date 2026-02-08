@@ -1,47 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.superfilm.uk/</loc>
+    <loc>https://superfilm.uk/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/discover</loc>
+    <loc>https://superfilm.uk/discover</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/clubs</loc>
+    <loc>https://superfilm.uk/clubs</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/movies</loc>
+    <loc>https://superfilm.uk/movies</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/events</loc>
+    <loc>https://superfilm.uk/events</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/leaderboard</loc>
+    <loc>https://superfilm.uk/leaderboard</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/about</loc>
+    <loc>https://superfilm.uk/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/terms</loc>
+    <loc>https://superfilm.uk/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://www.superfilm.uk/socials</loc>
+    <loc>https://superfilm.uk/socials</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://superfilm.uk/help</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

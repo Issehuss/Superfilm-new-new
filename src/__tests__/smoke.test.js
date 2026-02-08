@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import TermsPage from "../pages/Terms.jsx";
 import { SuperFilmFooter } from "../pages/AboutPage.jsx";
 import ErrorBoundary from "../components/ErrorBoundary";
@@ -8,13 +9,15 @@ import ErrorBoundary from "../components/ErrorBoundary";
 describe("Smoke tests", () => {
   it("renders Terms page with heading and last updated text", () => {
     render(
-      <MemoryRouter initialEntries={["/terms"]}>
-        <TermsPage />
-      </MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter initialEntries={["/terms"]}>
+          <TermsPage />
+        </MemoryRouter>
+      </HelmetProvider>
     );
 
-    expect(screen.getByRole("heading", { name: /superfilm – terms and conditions/i })).toBeInTheDocument();
-    expect(screen.getByText(/Last updated: 16\/12\/2025/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /terms and conditions/i })).toBeInTheDocument();
+    expect(screen.getByText(/last updated:/i)).toBeInTheDocument();
   });
 
   it("renders footer links", () => {

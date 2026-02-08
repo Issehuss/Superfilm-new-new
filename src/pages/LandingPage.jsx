@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import usePageVisibility from "../hooks/usePageVisibility";
+import { Helmet } from "react-helmet-async";
 
 const carouselSlides = [
   { heading: "Your film community lives here.", subheading: "Find your taste. Build your club. Share the experience.", image: "/decision_to_leave.jpg" },
@@ -26,6 +27,15 @@ export default function LandingPage() {
 
   return (
     <div className="relative w-full h-[calc(100vh-170px)] sm:h-[calc(100vh-140px)] overflow-hidden flex items-center justify-center bg-black text-white">
+      <Helmet>
+        <title>SuperFilm | Film clubs, events, and community</title>
+        <meta
+          name="description"
+          content="Join SuperFilm to discover film clubs, create screenings, and connect with cinephiles around the world."
+        />
+        <link rel="canonical" href="https://superfilm.uk/" />
+      </Helmet>
+
       {/* Centered cinematic card — rounded, no side fades */}
       <section className="relative w-full">
         <div
