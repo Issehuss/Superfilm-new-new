@@ -82,10 +82,18 @@ export default function AuthPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-4 rounded-lg bg-zinc-800 px-3 py-2 outline-none ring-1 ring-zinc-700 focus:ring-yellow-500"
+          className="w-full mb-2 rounded-lg bg-zinc-800 px-3 py-2 outline-none ring-1 ring-zinc-700 focus:ring-yellow-500"
           placeholder="••••••••"
           required
         />
+
+        {mode === "signin" && (
+          <div className="mb-4 flex items-center justify-end">
+            <Link to="/auth/forgot" className="text-sm text-zinc-400 hover:text-zinc-200 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+        )}
 
         {mode === "signup" && (
           <label className="mb-3 flex items-start gap-2 text-sm text-zinc-300">

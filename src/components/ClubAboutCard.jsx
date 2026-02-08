@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import supabase from "lib/supabaseClient";
 import { MapPin, Info, X, Plus } from "lucide-react";
 
-const DISCOVER_CACHE_KEY = "sf.clubs2.cache.v2";
+const DISCOVER_CACHE_KEY = "sf.clubs2.cache.v3";
 const CLUB_ABOUT_UPDATED_EVENT = "sf:club:about-updated";
 
 const applyMetaPatch = (clubId, metaPatch) => {
@@ -21,13 +21,41 @@ const applyMetaPatch = (clubId, metaPatch) => {
         String(entry.id) === `db-${normalizedId}`;
       if (!matches) return entry;
       changed = true;
-      return {
+      const next = {
         ...entry,
         meta: {
           ...(entry.meta || {}),
           ...metaPatch,
         },
       };
+      if (Object.prototype.hasOwnProperty.call(metaPatch, "location")) {
+        next.location =
+          typeof metaPatch.location === "string"
+            ? metaPatch.location
+            : metaPatch.location != null
+            ? String(metaPatch.location)
+            : "";
+      }
+      if (Object.prototype.hasOwnProperty.call(metaPatch, "genres")) {
+        next.genres = Array.isArray(metaPatch.genres) ? metaPatch.genres : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(metaPatch, "summary")) {
+        next.summary =
+          typeof metaPatch.summary === "string"
+            ? metaPatch.summary
+            : metaPatch.summary != null
+            ? String(metaPatch.summary)
+            : "";
+      }
+      if (Object.prototype.hasOwnProperty.call(metaPatch, "tagline")) {
+        next.tagline =
+          typeof metaPatch.tagline === "string"
+            ? metaPatch.tagline
+            : metaPatch.tagline != null
+            ? String(metaPatch.tagline)
+            : "";
+      }
+      return next;
     });
     if (!changed) return;
     localStorage.setItem(
@@ -49,6 +77,20 @@ const emitClubAboutUpdated = (clubId, metaPatch) => {
 const sanitizeMetaPatch = (patch) => {
   const entries = Object.entries(patch || {}).filter(([, value]) => value !== undefined);
   return Object.fromEntries(entries);
+};
+
+const isMissingColumnError = (error, column) => {
+  const msg = String(error?.message || "").toLowerCase();
+  const col = String(column || "").toLowerCase();
+  if (!msg || !col) return false;
+  return (
+    msg.includes(col) &&
+    (msg.includes("schema cache") ||
+      msg.includes("does not exist") ||
+      msg.includes("unknown column") ||
+      msg.includes("column") ||
+      msg.includes("not found"))
+  );
 };
 
 export default function ClubAboutCard({ club, isEditing, canEdit, onSaved }) {
@@ -121,12 +163,13 @@ export default function ClubAboutCard({ club, isEditing, canEdit, onSaved }) {
     if (busy) return;
     setBusy(true);
 
-    const payload = { about, tagline, location, genres };
     const trimmedTagline = tagline?.trim() || "";
     const trimmedAbout = about?.trim() || "";
     const summarySource = trimmedTagline || trimmedAbout;
     const summary =
       summarySource.length > 140 ? `${summarySource.slice(0, 140).trim()}…` : summarySource;
+
+    const payload = { about, tagline, location, genres, summary };
 
     const metaPatch = sanitizeMetaPatch({
       summary: summary || undefined,
@@ -140,7 +183,6 @@ export default function ClubAboutCard({ club, isEditing, canEdit, onSaved }) {
     });
     const patch = {
       ...payload,
-      summary,
       meta: nextMeta,
     };
 
@@ -150,7 +192,14 @@ export default function ClubAboutCard({ club, isEditing, canEdit, onSaved }) {
     emitClubAboutUpdated(club.id, metaPatch);
 
     try {
-      const { error } = await supabase.from("clubs").update(payload).eq("id", club.id);
+      let { error } = await supabase.from("clubs").update(payload).eq("id", club.id);
+      // Back-compat: some environments don't have a `summary` column yet.
+      if (error && isMissingColumnError(error, "summary")) {
+        ({ error } = await supabase
+          .from("clubs")
+          .update({ about, tagline, location, genres })
+          .eq("id", club.id));
+      }
       if (error) throw error;
       toast.success("About updated.", { id: toastId });
       setDirty(false);

@@ -920,6 +920,16 @@ const resumeTickRef = useRef(appResumeTick);
 const [club, setClub] = useState(initialCachedClub);
 const isCuratedClub = club?.type === "superfilm_curated";
 
+  useEffect(() => {
+    if (!club?.id || !idParam) return;
+    writeClubCache({
+      clubId: club.id,
+      slug: club.slug || null,
+      param: idParam,
+      data: club,
+    });
+  }, [club, idParam]);
+
 // --- Next Screening state ---
 const [nextScreening, setNextScreening] = useState(null);
   const [savingNext, setSavingNext] = useState(false);
@@ -1421,6 +1431,7 @@ useEffect(() => {
 
   const clubSelectCols = `
   id, slug, name, tagline, about, location,
+  genres,
   banner_url, profile_image_url, name_last_changed_at,
   featured_posters,
   type, is_private, privacy_mode, visibility,

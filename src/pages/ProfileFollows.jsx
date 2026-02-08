@@ -1,12 +1,14 @@
 // src/pages/ProfileFollows.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import supabase from "lib/supabaseClient";
 import { useUser } from "../context/UserContext";
 
 export default function ProfileFollows() {
   const { slug, id, mode } = useParams();
   const { user } = useUser();
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [targetProfile, setTargetProfile] = useState(null);
@@ -123,18 +125,48 @@ export default function ProfileFollows() {
     };
   }, [slug, id, user?.id, modeKey]);
 
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    if (slug) {
+      navigate(`/u/${slug}`);
+      return;
+    }
+    if (id) {
+      navigate(`/profile/${id}`);
+      return;
+    }
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-1">{heading}</h1>
-        {targetProfile && (
-          <p className="text-sm text-zinc-400 mb-6">
-            {targetProfile.display_name || targetProfile.username || targetProfile.slug || "User"}
-          </p>
-        )}
-        {!targetProfile && !loading && !error && (
-          <p className="text-sm text-red-400 mb-6">Profile not found.</p>
-        )}
+        <div className="flex items-start gap-3 mb-6">
+          <button
+            type="button"
+            onClick={goBack}
+            className="mt-0.5 h-9 w-9 grid place-items-center rounded-full border border-zinc-800 bg-zinc-950/80 text-zinc-300 hover:text-white hover:border-zinc-600 transition"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold leading-tight">{heading}</h1>
+            {targetProfile ? (
+              <p className="text-sm text-zinc-400">
+                {targetProfile.display_name ||
+                  targetProfile.username ||
+                  targetProfile.slug ||
+                  "User"}
+              </p>
+            ) : !loading && !error ? (
+              <p className="text-sm text-red-400">Profile not found.</p>
+            ) : null}
+          </div>
+        </div>
 
         {loading ? (
           <div className="space-y-3">

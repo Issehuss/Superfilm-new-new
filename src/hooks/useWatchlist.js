@@ -47,6 +47,7 @@ export default function useWatchlist(userId, options = {}) {
       const { data, error } = await supabase
         .from("user_watchlist")
         .select("movie_id, title, poster_path")
+        .eq("user_id", effectiveUserId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
@@ -96,6 +97,7 @@ export default function useWatchlist(userId, options = {}) {
           event: "*",
           schema: "public",
           table: "user_watchlist",
+          filter: `user_id=eq.${effectiveUserId}`,
         },
         () => retry()
       )
@@ -144,6 +146,11 @@ export default function useWatchlist(userId, options = {}) {
 
       const { error } = await supabase.from("user_watchlist").insert(row);
       if (error) {
+        // Ignore duplicate save (UNIQUE(user_id, movie_id))
+        if (error.code === "23505") {
+          return { ok: true };
+        }
+
         console.warn("[useWatchlist] insert error:", error);
         await retry();
         return { error };
@@ -170,7 +177,8 @@ export default function useWatchlist(userId, options = {}) {
       const { error } = await supabase
         .from("user_watchlist")
         .delete()
-        .eq("movie_id", Number(movieId));
+        .eq("movie_id", Number(movieId))
+        .eq("user_id", user.id);
 
       if (error) {
         console.warn("[useWatchlist] delete error:", error);

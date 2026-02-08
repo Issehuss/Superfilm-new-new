@@ -109,7 +109,14 @@ export default function MessageItem({
   const canHardDelete = isAdmin && typeof onHardDelete === "function" && !!msg?.is_deleted;
 
   const avatarSrc = getUserAvatar(p);
-  const displayName = p?.display_name || "Member";
+  const displayName = useMemo(() => {
+    const raw = p?.display_name || p?.displayName || null;
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    if (!trimmed || /^(member|memeber)$/i.test(trimmed)) {
+      return p?.username || "Member";
+    }
+    return trimmed;
+  }, [p?.display_name, p?.displayName, p?.username]);
 
   // bubble styles (reserve space for kebab)
   const bubbleBase =
@@ -263,7 +270,7 @@ export default function MessageItem({
               }`}
             >
               <span onClick={goToProfile} className="cursor-pointer hover:underline">
-                {p?.display_name || "Member"}
+                {displayName}
               </span>
               <RoleBadge role={msg?.role} />
               <span>• {timeLabel}</span>

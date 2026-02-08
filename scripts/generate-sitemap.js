@@ -13,6 +13,7 @@ const routes = [
   { path: "/leaderboard", changefreq: "weekly", priority: "0.6" },
   { path: "/about", changefreq: "monthly", priority: "0.4" },
   { path: "/terms", changefreq: "monthly", priority: "0.3" },
+  { path: "/socials", changefreq: "monthly", priority: "0.3" },
 ];
 
 const urls = routes

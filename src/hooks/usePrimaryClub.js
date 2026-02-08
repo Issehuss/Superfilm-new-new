@@ -33,12 +33,14 @@ function writeCache(userId, club) {
 
 export default function usePrimaryClub({ refreshEpoch = 0 } = {}) {
   const { user, profile, sessionLoaded, membershipEpoch } = useUser();
-  const { clubs: myClubs } = useMyClubs(undefined, { refreshEpoch });
+  const { clubs: myClubs, loading: myClubsLoading } = useMyClubs(undefined, {
+    refreshEpoch,
+  });
 
   const cached = useMemo(() => readCache(user?.id), [user?.id]);
   const [club, setClub] = useState(cached);
 
-  const { data: rpcClub, loading } = useHydratedSupabaseFetch(
+  const { data: rpcClub, loading: rpcLoading } = useHydratedSupabaseFetch(
     async () => {
       if (!user?.id) return null;
       const { data, error } = await supabase.rpc("get_my_primary_club");
@@ -74,11 +76,36 @@ export default function usePrimaryClub({ refreshEpoch = 0 } = {}) {
       }
     }
 
+    // If no explicit primary club exists, still return *a* club to keep Home populated.
+    if (myClubs?.length) {
+      const cachedId = cached?.id ? String(cached.id) : null;
+      const cachedMatch = cachedId
+        ? myClubs.find((c) => String(c?.id) === cachedId)
+        : null;
+      const anyClub = cachedMatch || myClubs[0] || null;
+      if (anyClub) {
+        setClub(anyClub);
+        writeCache(user.id, anyClub);
+        return;
+      }
+    }
+
+    // While memberships are still loading, don't flash "no club".
+    if (myClubsLoading) return;
+
     setClub(null);
-  }, [user?.id, rpcClub?.id, profile?.primary_club_id, myClubs, membershipEpoch]);
+  }, [
+    user?.id,
+    rpcClub?.id,
+    profile?.primary_club_id,
+    myClubs,
+    myClubsLoading,
+    membershipEpoch,
+    cached?.id,
+  ]);
 
   return {
     club,
-    loading,
+    loading: Boolean(rpcLoading || (myClubsLoading && !club)),
   };
 }

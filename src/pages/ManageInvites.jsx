@@ -1,6 +1,7 @@
 // src/pages/ManageInvites.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import supabase from "lib/supabaseClient";
 import { useUser } from "../context/UserContext";
 
@@ -12,7 +13,7 @@ function randCode(len = 10) {
 }
 
 export default function ManageInvites() {
-  const { user, profile } = useUser();
+  const { user } = useUser();
   const { clubParam } = useParams();
 
   const [loading, setLoading] = useState(true);
@@ -28,12 +29,7 @@ export default function ManageInvites() {
   const [maxUses, setMaxUses] = useState(25);
   const [note, setNote] = useState("");
 
-  const isPremium = useMemo(
-    () => profile?.plan === "directors_cut" || profile?.is_premium === true,
-    [profile?.plan, profile?.is_premium]
-  );
-
-  const canManage = isPremium && role === "president";
+  const canManage = role === "president";
 
   useEffect(() => {
     let alive = true;
@@ -53,6 +49,7 @@ export default function ManageInvites() {
       try {
         // Resolve club id
         let resolvedId = null;
+        let resolvedClub = null;
         if (/^[0-9a-f-]{16,}$/i.test(clubParam)) {
           resolvedId = clubParam;
         } else {
@@ -63,9 +60,20 @@ export default function ManageInvites() {
             .maybeSingle();
           if (eSlug) throw eSlug;
           resolvedId = cBySlug?.id ?? null;
-          if (alive) setClub(cBySlug || null);
+          resolvedClub = cBySlug || null;
         }
         if (!resolvedId) throw new Error("Club not found.");
+
+        // Ensure we have club details (name/slug) for the invite message + links.
+        if (!resolvedClub) {
+          const { data: cById, error: eId } = await supabase
+            .from("clubs")
+            .select("id, name, slug")
+            .eq("id", resolvedId)
+            .maybeSingle();
+          if (eId) throw eId;
+          resolvedClub = cById || null;
+        }
 
         // Role
         const { data: mem, error: eMem } = await supabase
@@ -86,6 +94,7 @@ export default function ManageInvites() {
 
         if (!alive) return;
         setClubId(resolvedId);
+        setClub(resolvedClub);
         setRole(mem?.role || null);
         setInvites(Array.isArray(inv) ? inv : []);
       } catch (e) {
@@ -107,6 +116,10 @@ export default function ManageInvites() {
     setCreating(true);
     setErr("");
     try {
+      const { data: auth } = await supabase.auth.getSession();
+      const resolvedUserId = user?.id || auth?.session?.user?.id || null;
+      if (!resolvedUserId) throw new Error("Please sign in to create an invite.");
+
       const code = randCode(10);
       const exp = new Date();
       exp.setDate(exp.getDate() + Math.max(1, Number(days) || 1));
@@ -114,7 +127,7 @@ export default function ManageInvites() {
       const payload = {
         club_id: clubId,
         code,
-        created_by: user.id,
+        created_by: resolvedUserId,
         expires_at: exp.toISOString(),
         max_uses: Math.max(1, Number(maxUses) || 1),
         note: note || null,
@@ -158,6 +171,18 @@ export default function ManageInvites() {
       ? `${window.location.origin}/join/`
       : "/join/";
 
+  const inviteTextFor = useMemo(() => {
+    const clubName = club?.name ? `“${club.name}”` : "our club";
+    return (joinUrl, invite) => {
+      const parts = [
+        `You’re invited to join ${clubName} on SuperFilm.`,
+        invite?.note ? `Note: ${invite.note}` : null,
+        joinUrl,
+      ].filter(Boolean);
+      return parts.join("\n\n");
+    };
+  }, [club?.name]);
+
   /* --------------- UI --------------- */
 
   if (loading) {
@@ -178,14 +203,6 @@ export default function ManageInvites() {
     );
   }
 
-  if (!isPremium) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-3">Manage Invites</h1>
-        <div className="text-sm text-zinc-400">Invites are a Director’s Cut feature.</div>
-      </div>
-    );
-  }
   if (role !== "president") {
     return (
       <div className="max-w-4xl mx-auto">
@@ -197,7 +214,9 @@ export default function ManageInvites() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">Manage Invites</h1>
+      <h1 className="text-2xl font-semibold mb-4">
+        Manage Invites{club?.name ? ` • ${club.name}` : ""}
+      </h1>
 
       {/* Create */}
       <section className="rounded-xl border border-zinc-700 bg-black/40 p-4 mb-6">
@@ -262,7 +281,9 @@ export default function ManageInvites() {
             {invites.map((i) => {
               const expired = i.expires_at ? new Date(i.expires_at) < new Date() : false;
               const disabled = i.is_revoked || expired || (i.max_uses && i.used_count >= i.max_uses);
-              const joinUrl = `${joinBase}${i.code}`;
+              const clubLinkParam = encodeURIComponent(club?.slug || clubId);
+              const joinUrl = `${joinBase}${i.code}?club=${clubLinkParam}`;
+              const inviteText = inviteTextFor(joinUrl, i);
               return (
                 <div key={i.id} className="rounded-lg border border-zinc-700 p-3 bg-black/30">
                   <div className="flex items-center justify-between gap-3">
@@ -281,10 +302,17 @@ export default function ManageInvites() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
-                        onClick={() => navigator.clipboard?.writeText(joinUrl)}
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard?.writeText(inviteText);
+                            toast.success("Invite copied.");
+                          } catch {
+                            toast.error("Couldn’t copy invite.");
+                          }
+                        }}
                         className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-white hover:bg-zinc-900"
                       >
-                        Copy
+                        Copy invite
                       </button>
                       <button
                         type="button"

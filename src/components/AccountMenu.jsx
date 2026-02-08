@@ -12,6 +12,10 @@ import {
   CreditCard,
   Users,
   Download,
+  Info,
+  FileText,
+  HelpCircle,
+  Share2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
@@ -19,6 +23,14 @@ import PartnerBadge from "./PartnerBadge.jsx";
 import useEntitlements from "../hooks/useEntitlements";
 import DirectorsCutBadge from "./DirectorsCutBadge";
 import FeedbackButton from "./FeedbackButton.jsx";
+
+function isStandalonePwa() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
 
 export default function AccountMenu({ className = "" }) {
   // get auth + profile from context
@@ -30,6 +42,7 @@ export default function AccountMenu({ className = "" }) {
   const ref = useRef(null);
   const btnRef = useRef(null);
   const [signingOut, setSigningOut] = useState(false);
+  const standalonePwa = useMemo(() => isStandalonePwa(), []);
 
   const displayName = useMemo(
     () => profile?.display_name || "Me",
@@ -101,8 +114,8 @@ export default function AccountMenu({ className = "" }) {
 
   const goManageInvites = () => {
     setOpen(false);
-    if (!isPremium || !presidentClub) {
-      navigate("/premium");
+    if (!presidentClub) {
+      navigate("/clubs");
       return;
     }
     const path = presidentClub.slug
@@ -140,6 +153,26 @@ export default function AccountMenu({ className = "" }) {
     navigate("/pwa");
   };
 
+  const goAbout = () => {
+    setOpen(false);
+    navigate("/about");
+  };
+
+  const goTerms = () => {
+    setOpen(false);
+    navigate("/terms");
+  };
+
+  const goHelp = () => {
+    setOpen(false);
+    navigate("/help");
+  };
+
+  const goSocials = () => {
+    setOpen(false);
+    navigate("/socials");
+  };
+
   // ✅ REAL sign-out handler
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -162,6 +195,7 @@ export default function AccountMenu({ className = "" }) {
   };
 
   const premiumEnabled = isPremium && !!presidentClub;
+  const invitesEnabled = !!presidentClub;
   const requestsEnabled = !!presidentClub;
 
   return (
@@ -280,12 +314,10 @@ export default function AccountMenu({ className = "" }) {
             onClick={goManageInvites}
             role="menuitem"
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-2xl ${
-              premiumEnabled ? "hover:bg-white/10" : "opacity-60 hover:bg-white/5"
+              invitesEnabled ? "hover:bg-white/10" : "opacity-60 hover:bg-white/5"
             }`}
             title={
-              premiumEnabled
-                ? "Create & manage invites"
-                : "Director’s Cut required (or not a club president)"
+              invitesEnabled ? "Create & manage invites" : "Club president required"
             }
           >
             <KeySquare className="h-4 w-4" />
@@ -334,6 +366,53 @@ export default function AccountMenu({ className = "" }) {
 <FeedbackButton variant="menu" />
 
 <div className="h-px bg-white/10 my-1" />
+
+          {/* Footer pages (useful in PWA where footer may be harder to reach) */}
+          {standalonePwa && (
+            <>
+              <button
+                type="button"
+                onClick={goAbout}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <Info className="h-4 w-4" />
+                <span>About</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={goTerms}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Terms</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={goSocials}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <Share2 className="h-4 w-4" />
+                <span>Our Socials</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={goHelp}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <HelpCircle className="h-4 w-4" />
+                <span>Help</span>
+              </button>
+
+              <div className="h-px bg-white/10 my-1" />
+            </>
+          )}
 
 {/* ✅ Sign out */}
           <button

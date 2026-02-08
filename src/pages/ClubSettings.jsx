@@ -330,6 +330,10 @@ export default function ClubSettings() {
           Private clubs do not appear on the discovery page and can only be
           joined through invites.
         </p>
+        <p className="text-xs text-zinc-500 mb-3">
+          Tip: If you own multiple clubs and opened this page from the Account menu, it targets
+          the last club profile you opened—so open the club you want first, then come back here.
+        </p>
 
         {/* Status display */}
         <div className="mb-3">

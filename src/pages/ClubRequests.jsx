@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
 import supabase from "lib/supabaseClient";
 import { useUser, useMembershipRefresh } from "../context/UserContext";
 import { Check, X, Users } from "lucide-react";
@@ -10,12 +10,10 @@ const UUID_RX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export default function ClubRequests() {
   const { clubParam } = useParams();
-  const navigate = useNavigate();
   const { user, sessionLoaded } = useUser();
   const { bumpMembership } = useMembershipRefresh();
 
-
-  const [club, setClub] = useState(null);          // { id, name, slug }
+  const [club, setClub] = useState(null); // { id, name, slug, welcome_message }
   const [rows, setRows] = useState([]);            // pending requests
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -32,14 +30,14 @@ export default function ClubRequests() {
         if (UUID_RX.test(clubParam)) {
           const { data } = await supabase
             .from("clubs")
-            .select("id, name, slug")
+            .select("id, name, slug, welcome_message")
             .eq("id", clubParam)
             .maybeSingle();
           c = data || null;
         } else {
           const { data } = await supabase
             .from("clubs")
-            .select("id, name, slug")
+            .select("id, name, slug, welcome_message")
             .eq("slug", clubParam)
             .maybeSingle();
           c = data || null;
@@ -117,33 +115,37 @@ useEffect(() => {
     setBusyId(r.id);
     setErr("");
     try {
-      // a) add to club_members (ignore duplicate)
-     // A) approve via RPC (adds member + sends welcome message if set)
-const { error: rpcErr } = await supabase.rpc("approve_membership", {
-  p_club_id: club.id,
-  p_user_id: r.user_id,
-});
-if (rpcErr) throw rpcErr;
+      // A) approve via RPC (adds member)
+      const { error: rpcErr } = await supabase.rpc("approve_membership", {
+        p_club_id: club.id,
+        p_user_id: r.user_id,
+      });
+      if (rpcErr) throw rpcErr;
 
-// B) mark the original request as approved
-const { error: updErr } = await supabase
-  .from("membership_requests")
-  .update({ status: "approved", decided_at: new Date().toISOString() })
-  .eq("id", r.id);
-if (updErr) throw updErr;
+      // B) mark the original request as approved
+      const { error: updErr } = await supabase
+        .from("membership_requests")
+        .update({ status: "approved", decided_at: new Date().toISOString() })
+        .eq("id", r.id);
+      if (updErr) throw updErr;
 
-// Notify requester
-await supabase.from("notifications").insert({
-  user_id: r.user_id,
-  club_id: club.id,
-  type: "club.membership.approved",
-  data: {
-    club_name: club.name,
-    slug: club.slug,
-    href: `/clubs/${club.slug || club.id}`,
-    message: `Your request to join ${club.name} was accepted.`,
-  },
-});
+      // Notify requester (welcome message if set)
+      const welcome = String(club?.welcome_message || "").trim();
+      const data = {
+        club_name: club.name,
+        slug: club.slug,
+        href: `/clubs/${club.slug || club.id}`,
+        ...(welcome
+          ? { title: `Welcome to ${club.name}`, message: welcome }
+          : { message: `Your request to join ${club.name} was accepted.` }),
+      };
+      await supabase.from("notifications").insert({
+        user_id: r.user_id,
+        actor_id: user?.id || null,
+        club_id: club.id,
+        type: "club.membership.approved",
+        data,
+      });
 
 
       // remove from list
@@ -170,6 +172,7 @@ await supabase.from("notifications").insert({
 
       await supabase.from("notifications").insert({
         user_id: r.user_id,
+        actor_id: user?.id || null,
         club_id: club.id,
         type: "club.membership.rejected",
         data: {

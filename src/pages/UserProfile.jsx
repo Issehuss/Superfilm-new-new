@@ -448,6 +448,7 @@ const UserProfile = () => {
       const { data, error } = await supabase
         .from("user_watchlist")
         .select("id, movie_id, title, poster_path")
+        .eq("user_id", viewProfile.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return Array.isArray(data)

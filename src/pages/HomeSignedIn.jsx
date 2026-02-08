@@ -1192,7 +1192,13 @@ export default function HomeSignedIn() {
 
       {/* Leaderboard */}
       <div className="px-7 pt-7">
-        <LeaderboardWideCard shouldLoad={safeFetchEnabled} refreshEpoch={homeRefreshEpoch} />
+        <LeaderboardWideCard
+          shouldLoad={safeFetchEnabled}
+          refreshEpoch={homeRefreshEpoch}
+          homeClub={club}
+          homeClubImage={clubImage}
+          homeClubLoading={clubLoading}
+        />
       </div>
 
       {/* Bottom Quick actions */}

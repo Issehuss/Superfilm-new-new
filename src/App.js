@@ -77,10 +77,12 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UserSearchPage = lazy(() => import("./pages/UserSearchPage.jsx"));
 const TermsPage = lazy(() => import("./pages/Terms.jsx"));
 const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
+const OurSocialsPage = lazy(() => import("./pages/OurSocials.jsx"));
 const ProfileFollows = lazy(() => import("./pages/ProfileFollows.jsx"));
 const Watchlist = lazy(() => import("./pages/Watchlist.jsx"));
 const SettingsProfile = lazy(() => import("./pages/SettingsProfile.jsx"));
 const PwaInstall = lazy(() => import("./pages/PwaInstall.jsx"));
+const JoinClubInvite = lazy(() => import("./pages/JoinClubInvite.jsx"));
 
 // Premium/president-only pages
 const ClubSettings = lazy(() => import("./pages/ClubSettings.jsx"));
@@ -140,8 +142,11 @@ function RequirePresidentPremium({ children }) {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (loading || !sessionLoaded) return; // wait for user/profile hydration
+    // wait for user/profile hydration
+    if (loading || !sessionLoaded) return;
     let mounted = true;
+    setChecking(true);
+    setOk(false);
     (async () => {
       try {
         if (!user?.id) {
@@ -157,15 +162,25 @@ function RequirePresidentPremium({ children }) {
         }
 
         let clubId = null;
-        if (/^[0-9a-f-]{16,}$/.test(clubParam)) {
+        if (/^[0-9a-f-]{16,}$/i.test(clubParam)) {
           clubId = clubParam;
         } else {
+          // NOTE: `clubs_public` intentionally excludes private clubs. Premium president
+          // routes must resolve slug → id via `clubs` to support private clubs.
           const { data: bySlug } = await supabase
-            .from("clubs_public")
+            .from("clubs")
             .select("id")
             .eq("slug", clubParam)
             .maybeSingle();
           clubId = bySlug?.id || null;
+          if (!clubId) {
+            const { data: bySlugPublic } = await supabase
+              .from("clubs_public")
+              .select("id")
+              .eq("slug", clubParam)
+              .maybeSingle();
+            clubId = bySlugPublic?.id || null;
+          }
         }
         if (!clubId) {
           setOk(false);
@@ -186,6 +201,8 @@ function RequirePresidentPremium({ children }) {
         }
 
         if (mounted) setOk(true);
+      } catch (e) {
+        console.warn("[RequirePresidentPremium] permission check failed:", e?.message || e);
       } finally {
         if (mounted) setChecking(false);
       }
@@ -193,10 +210,85 @@ function RequirePresidentPremium({ children }) {
     return () => {
       mounted = false;
     };
-  }, [user?.id, profile?.plan, profile?.is_premium, clubParam]);
+  }, [loading, sessionLoaded, user?.id, profile?.plan, profile?.is_premium, clubParam]);
 
   if (loading || checking) return <Splash message="Checking permissions…" />;
   if (!ok) return <Navigate to="/premium" replace />;
+
+  return children;
+}
+
+/* ==================== GUARD: RequirePresident ==================== */
+function RequirePresident({ children }) {
+  const { user, loading, sessionLoaded } = useUser();
+  const { clubParam } = useParams();
+  const [ok, setOk] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    // wait for user/profile hydration
+    if (loading || !sessionLoaded) return;
+    let mounted = true;
+    setChecking(true);
+    setOk(false);
+    (async () => {
+      try {
+        if (!user?.id) {
+          setOk(false);
+          return;
+        }
+
+        let clubId = null;
+        if (/^[0-9a-f-]{16,}$/i.test(clubParam)) {
+          clubId = clubParam;
+        } else {
+          const { data: bySlug } = await supabase
+            .from("clubs")
+            .select("id")
+            .eq("slug", clubParam)
+            .maybeSingle();
+          clubId = bySlug?.id || null;
+          if (!clubId) {
+            const { data: bySlugPublic } = await supabase
+              .from("clubs_public")
+              .select("id")
+              .eq("slug", clubParam)
+              .maybeSingle();
+            clubId = bySlugPublic?.id || null;
+          }
+        }
+        if (!clubId) {
+          setOk(false);
+          return;
+        }
+
+        const { data: mem } = await supabase
+          .from("club_members")
+          .select("club_id, user_id, role, joined_at, accepted")
+          .eq("club_id", clubId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        const isPresident = mem?.role === "president";
+        if (!isPresident) {
+          setOk(false);
+          return;
+        }
+
+        if (mounted) setOk(true);
+      } catch (e) {
+        console.warn("[RequirePresident] permission check failed:", e?.message || e);
+      } finally {
+        if (mounted) setChecking(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [loading, sessionLoaded, user?.id, clubParam]);
+
+  if (loading || checking) return <Splash message="Checking permissions…" />;
+  if (!ok) return <Navigate to="/clubs" replace />;
 
   return children;
 }
@@ -648,6 +740,7 @@ function MainShell() {
             {/* Clubs */}
             <Route path="/clubs/:slug" element={<ClubProfile />} />
             <Route path="/clubs/:clubParam/takes/archive" element={<ClubTakesArchive />} />
+            <Route path="/join/:code" element={<JoinClubInvite />} />
 
             {/* Premium president-only */}
             <Route
@@ -661,9 +754,9 @@ function MainShell() {
             <Route
               path="/clubs/:clubParam/invites"
               element={
-                <RequirePresidentPremium>
+                <RequirePresident>
                   <ManageInvites />
-                </RequirePresidentPremium>
+                </RequirePresident>
               }
             />
            
@@ -789,6 +882,7 @@ function MainShell() {
             <Route path="/about" element={<AboutPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/help" element={<HelpPage />} />
+            <Route path="/socials" element={<OurSocialsPage />} />
             <Route path="/auth/forgot" element={<ForgotPassword />} />
 <Route path="/auth/reset" element={<ResetPassword />} />
 <Route path="/search/users" element={<UserSearchPage />} />

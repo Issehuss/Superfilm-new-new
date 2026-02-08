@@ -51,17 +51,49 @@ function MessageListSkeleton() {
 const memoryChatCache = new Map();
 
 async function fetchProfileDisplays(ids) {
-  const unique = Array.from(new Set((ids || []).filter(Boolean)));
+  const unique = Array.from(
+    new Set((ids || []).map((id) => String(id || "").trim()).filter((id) => UUID_RX.test(id)))
+  );
   if (!unique.length) return {};
+
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, username, avatar_url, slug")
+      .in("id", unique);
+
+    if (!error && Array.isArray(data)) {
+      const map = {};
+      data.forEach((row) => {
+        if (!row?.id) return;
+        map[row.id] = row;
+      });
+      return map;
+    }
+  } catch {
+    // ignore; fallback below
+  }
+
+  // Fallback: use RPC if `profiles` isn’t readable in this environment.
   const results = await Promise.all(
     unique.map(async (id) => {
-      const { data, error } = await supabase.rpc("get_profile_display", {
-        p_user_id: id,
-      });
+      const { data, error } = await supabase.rpc("get_profile_display", { p_user_id: id });
       if (error || !data) return null;
-      return [id, { ...data, id }];
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) return null;
+      return [
+        id,
+        {
+          id,
+          slug: row?.slug ?? null,
+          avatar_url: row?.avatar_url ?? row?.avatarUrl ?? null,
+          username: row?.username ?? null,
+          display_name: row?.display_name ?? row?.displayName ?? row?.username ?? null,
+        },
+      ];
     })
   );
+
   const map = {};
   results.forEach((pair) => {
     if (pair) map[pair[0]] = pair[1];
@@ -134,25 +166,51 @@ export default function ClubChat() {
   const [reporting] = useState(false);
   const [reportError] = useState(null);
   const [profilesCache, setProfilesCache] = useState({});
+  const profilesCacheRef = useRef({});
   const [memberCount, setMemberCount] = useState(null);
 
   const selfProfile = useMemo(() => {
     if (!user?.id) return null;
+    const username = profile?.username || null;
+    const displayNameRaw = profile?.display_name ?? profile?.displayName ?? null;
+    const displayNameTrimmed = typeof displayNameRaw === "string" ? displayNameRaw.trim() : "";
     return {
       id: user.id,
       avatar_url: profile?.avatar_url || "/default-avatar.svg",
-      display_name: profile?.display_name || profile?.username || null,
+      display_name: displayNameTrimmed || username || null,
+      username,
       slug: profile?.slug || null,
     };
-  }, [user?.id, profile?.avatar_url, profile?.display_name, profile?.username, profile?.slug]);
+  }, [
+    user?.id,
+    profile?.avatar_url,
+    profile?.display_name,
+    profile?.displayName,
+    profile?.username,
+    profile?.slug,
+  ]);
 
-  // Seed cache with self profile for instant avatar on send
   useEffect(() => {
-    if (selfProfile?.id) {
-      setProfilesCache((prev) =>
-        prev[selfProfile.id] ? prev : { ...prev, [selfProfile.id]: selfProfile }
-      );
-    }
+    profilesCacheRef.current = profilesCache || {};
+  }, [profilesCache]);
+
+  // Seed/refresh cache with self profile for instant name/avatar on send
+  useEffect(() => {
+    if (!selfProfile?.id) return;
+    setProfilesCache((prev) => {
+      const existing = prev[selfProfile.id];
+      const next = existing ? { ...existing, ...selfProfile } : selfProfile;
+      if (
+        existing &&
+        existing.avatar_url === next.avatar_url &&
+        existing.slug === next.slug &&
+        existing.username === next.username &&
+        existing.display_name === next.display_name
+      ) {
+        return prev;
+      }
+      return { ...prev, [selfProfile.id]: next };
+    });
   }, [selfProfile]);
 
 
@@ -303,22 +361,32 @@ useEffect(() => {
       const { data: rows, error: err1 } = await supabase
         .from("club_messages")
         .select("id, club_id, user_id, body, image_url, is_deleted, created_at, type, metadata")
+        .eq("club_id", resolvedClubId)
         .order("created_at", { ascending: true })
         .limit(PAGE_SIZE);
       if (err1) throw err1;
 
       const uniqueUserIds = [...new Set((rows || []).map(r => r.user_id).filter(Boolean))];
-      let profileMap = {};
+      const cache = profilesCacheRef.current || {};
+      let profileMap = cache;
+      let fetchedProfiles = {};
       if (uniqueUserIds.length) {
-        const missing = uniqueUserIds.filter((id) => !profilesCache[id]);
-        const fetched = missing.length ? await fetchProfileDisplays(missing) : {};
-        profileMap = { ...profilesCache, ...fetched };
+        const missing = uniqueUserIds.filter((id) => {
+          const cached = cache?.[id];
+          if (!cached) return true;
+          const name = String(cached.display_name || cached.displayName || cached.username || "").trim();
+          return !name || /^(member|memeber)$/i.test(name);
+        });
+        fetchedProfiles = missing.length ? await fetchProfileDisplays(missing) : {};
+        if (Object.keys(fetchedProfiles).length) {
+          profileMap = { ...cache, ...fetchedProfiles };
+        }
       }
 
       const hydrated = (rows || []).map(r => ({ ...r, profiles: profileMap[r.user_id] || null }));
-      return { messages: hydrated, profileMap };
+      return { messages: hydrated, fetchedProfiles };
     },
-    [resolvedClubId, profilesCache, appResumeTick, sessionLoaded],
+    [resolvedClubId, appResumeTick, sessionLoaded],
     { enabled: Boolean(resolvedClubId && sessionLoaded), timeoutMs: 8000 }
   );
 
@@ -328,7 +396,10 @@ useEffect(() => {
 
   useEffect(() => {
     if (!chatResult) return;
-    setProfilesCache(chatResult.profileMap || {});
+    const fetched = chatResult.fetchedProfiles || {};
+    if (fetched && Object.keys(fetched).length) {
+      setProfilesCache((prev) => ({ ...prev, ...fetched }));
+    }
     setMessages(chatResult.messages || []);
     writeChatCache(resolvedClubId, chatResult.messages || []);
   
@@ -416,16 +487,12 @@ useEffect(() => {
         { event: "INSERT", schema: "public", table: "club_messages", filter: `club_id=eq.${resolvedClubId}` },
         async (payload) => {
           const msg = payload.new;
-          const cachedProfile = profilesCache[msg.user_id];
+          const cachedProfile = profilesCacheRef.current?.[msg.user_id];
           let profile = cachedProfile;
           if (!profile) {
-            const { data: prof, error } = await supabase.rpc("get_profile_display", {
-              p_user_id: msg.user_id,
-            });
-            profile = error ? null : prof || null;
-            if (profile) {
-              setProfilesCache((prev) => ({ ...prev, [msg.user_id]: { ...profile, id: msg.user_id } }));
-            }
+            const fetched = await fetchProfileDisplays([msg.user_id]);
+            profile = fetched?.[msg.user_id] || null;
+            if (profile) setProfilesCache((prev) => ({ ...prev, [msg.user_id]: profile }));
           }
           setMessages(prev => [...prev, { ...msg, profiles: profile || null }]);
           requestAnimationFrame(() => scrollToBottom());
@@ -444,7 +511,7 @@ useEffect(() => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [resolvedClubId, profilesCache]);
+  }, [resolvedClubId]);
   
   /** Presence (separate from chat changes) */
   useEffect(() => {
@@ -735,7 +802,7 @@ setMessages((prev) =>
       el.scrollHeight - el.scrollTop - el.clientHeight
     );
     if (!force && distanceFromBottom > AUTO_SCROLL_THRESHOLD) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el.scrollTo({ top: el.scrollHeight });
     autoScrollAllowedRef.current = true;
   }, []);
 
@@ -867,15 +934,21 @@ async function handleDeleteMessage(arg) {
                 <div className="flex-1 h-px bg-zinc-800" />
               </div>
             ) : m._type === "day" ? (
-              <div key={m.id} className="sticky top-2 z-0 my-4 flex items-center justify-center">
-                <span className="px-3 py-1 rounded-full text-xs bg-zinc-900 text-zinc-400 border border-zinc-800">
+              <div
+                key={m.id}
+                className="sticky top-2 z-30 my-4 flex items-center justify-center pointer-events-none"
+              >
+                <span className="px-3 py-1 rounded-full text-xs bg-zinc-950/80 text-zinc-300 border border-zinc-800 backdrop-blur-sm shadow-lg">
                   {m.label}
                 </span>
               </div>
             ) : (
               <MessageItem
                 key={m.id}
-                msg={m}
+                msg={{
+                  ...m,
+                  profiles: profilesCache[m.user_id] || m.profiles || null,
+                }}
                 isMe={m.user_id === me}
                 isAdmin={isAdmin}
                 onDelete={() => handleDeleteMessage(m)} // pass the whole message
