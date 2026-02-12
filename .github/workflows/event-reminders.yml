@@ -1,0 +1,16 @@
+name: Event Reminders Cron
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call event-reminders function
+        run: |
+          curl -X POST \
+            https://oztcnyomrefpwldtqwqc.supabase.co/functions/v1/event-reminders \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
