@@ -155,7 +155,12 @@ const CITY_OPTIONS = [
 /* --------------------------------
    OPTIMISED + SAFARI-STABLE BACKDROP
 --------------------------------- */
-function CinematicBackdrop({ path, priority = false, objectPosition = "50% 50%" }) {
+function CinematicBackdrop({
+  path,
+  priority = false,
+  objectPosition = "50% 50%",
+  mobileContain = false,
+}) {
   const safePath = useMemo(() => normalizeTmdbPath(path), [path]);
 
   // Use TMDB's stable CDN
@@ -194,6 +199,9 @@ function CinematicBackdrop({ path, priority = false, objectPosition = "50% 50%" 
 
   // Decide what we actually show
   const finalHD = errorFallback ? lqip : loaded ? original : lqip;
+  const hdFitClass = mobileContain
+    ? "object-contain sm:object-cover transition-opacity duration-[900ms]"
+    : "object-cover transition-opacity duration-[900ms]";
 
   return (
     <div className="absolute inset-0">
@@ -219,7 +227,7 @@ function CinematicBackdrop({ path, priority = false, objectPosition = "50% 50%" 
         sizes="100vw"
         alt=""
         className="absolute inset-0 w-full h-full"
-        imgClassName="object-cover transition-opacity duration-[900ms]"
+        imgClassName={hdFitClass}
         style={{
           objectPosition,
           opacity: loaded ? 1 : 0,
@@ -504,9 +512,14 @@ alert("ERROR: " + (e?.message || JSON.stringify(e)));
       `}</style>
 
       <div className="mx-auto max-w-6xl pt-8 pb-16">
-        <div className="relative overflow-hidden rounded-3xl border-4 border-white/20 shadow-2xl -mx-6 w-[calc(100%+3rem)] min-h-[1120px]">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/15 sm:border-4 sm:border-white/20 shadow-2xl w-full sm:-mx-6 sm:w-[calc(100%+3rem)] min-h-[calc(100vh-9.5rem)] sm:min-h-[1120px]">
           {/* HD backdrop with LQIP → hi-res fade */}
-          <CinematicBackdrop path={backdrop} priority objectPosition="50% 50%" />
+          <CinematicBackdrop
+            path={backdrop}
+            priority
+            objectPosition="50% 50%"
+            mobileContain
+          />
 
           {/* Wizard Card */}
           <div className="absolute inset-0 flex items-center justify-center p-4">

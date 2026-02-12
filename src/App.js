@@ -16,7 +16,7 @@ import { Toaster } from "react-hot-toast";
 import { trackPageView } from "./lib/analytics";
 import BetaBanner from "./components/BetaBanner";
 import CookieConsent from "./components/CookieConsent";
-import { Home as HomeIcon, Users, Film, User as UserIcon } from "lucide-react";
+import { Home as HomeIcon, Users, Film, User as UserIcon, Compass } from "lucide-react";
 import PwaUpdateToast from "./components/PwaUpdateToast";
 import PwaInstallPrompt from "./components/PwaInstallPrompt";
 import usePerfLogger from "./hooks/usePerfLogger";
@@ -922,6 +922,10 @@ function MobileNav() {
   const clubsRef = useRef(null);
 
   useEffect(() => {
+    setClubsOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
     if (!clubsOpen) return;
     function onDocClick(e) {
       if (clubsRef.current && !clubsRef.current.contains(e.target)) {
@@ -1021,11 +1025,14 @@ function MobileNav() {
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
         aria-label="Mobile navigation"
       >
-        <div className="mx-auto max-w-5xl px-4 py-2 flex items-center justify-around text-zinc-200 text-xs">
+        <div className="mx-auto max-w-5xl px-2 py-2 grid grid-cols-5 items-center text-zinc-200 text-xs">
           <NavLink
             to="/"
+            onClick={() => setClubsOpen(false)}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 ${isActive ? "text-white" : "text-zinc-300"}`
+              `flex flex-col items-center justify-center gap-1 py-1 ${
+                isActive ? "text-white" : "text-zinc-300"
+              }`
             }
             aria-label="Home"
           >
@@ -1033,12 +1040,28 @@ function MobileNav() {
             <span>Home</span>
           </NavLink>
 
+          <NavLink
+            to="/clubs"
+            onClick={() => setClubsOpen(false)}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center gap-1 py-1 ${
+                isActive && location.pathname === "/clubs" ? "text-white" : "text-zinc-300"
+              }`
+            }
+            aria-label="Clubs"
+          >
+            <Compass size={18} />
+            <span>Clubs</span>
+          </NavLink>
+
           {user ? (
             <button
               type="button"
               onClick={() => setClubsOpen((v) => !v)}
-              className={`flex flex-col items-center gap-1 ${
-                location.pathname.startsWith("/clubs") || clubsOpen
+              className={`flex flex-col items-center justify-center gap-1 py-1 ${
+                location.pathname === "/myclub" ||
+                location.pathname === "/me/club" ||
+                clubsOpen
                   ? "text-white"
                   : "text-zinc-300"
               }`}
@@ -1046,25 +1069,30 @@ function MobileNav() {
               aria-expanded={clubsOpen ? "true" : "false"}
             >
               <Users size={18} />
-              <span>Clubs</span>
+              <span>My Clubs</span>
             </button>
           ) : (
             <NavLink
-              to="/clubs"
+              to="/auth"
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 ${isActive ? "text-white" : "text-zinc-300"}`
+                `flex flex-col items-center justify-center gap-1 py-1 ${
+                  isActive ? "text-white" : "text-zinc-300"
+                }`
               }
-              aria-label="Clubs"
+              aria-label="My clubs"
             >
               <Users size={18} />
-              <span>Clubs</span>
+              <span>My Clubs</span>
             </NavLink>
           )}
 
           <NavLink
             to="/movies"
+            onClick={() => setClubsOpen(false)}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 ${isActive ? "text-white" : "text-zinc-300"}`
+              `flex flex-col items-center justify-center gap-1 py-1 ${
+                isActive ? "text-white" : "text-zinc-300"
+              }`
             }
             aria-label="Movies"
           >
@@ -1073,8 +1101,11 @@ function MobileNav() {
           </NavLink>
           <NavLink
             to={user ? "/profile" : "/auth"}
+            onClick={() => setClubsOpen(false)}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 ${isActive ? "text-white" : "text-zinc-300"}`
+              `flex flex-col items-center justify-center gap-1 py-1 ${
+                isActive ? "text-white" : "text-zinc-300"
+              }`
             }
             aria-label="Profile"
           >

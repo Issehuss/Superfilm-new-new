@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { ArrowLeft } from "lucide-react";
 import "./Events.css";
 import supabase from "lib/supabaseClient";
 import useRealtimeResume from "../hooks/useRealtimeResume";
@@ -470,6 +471,17 @@ export default function Events() {
       <div className={`events-page ${isStandalonePwa ? "events-page-pwa" : ""}`}>
         <header className="page-head">
           <div className="head-copy">
+            {isStandalonePwa && (
+              <button
+                type="button"
+                onClick={() => navigate("/discover")}
+                className="mb-3 inline-flex items-center gap-2 rounded-full border border-zinc-700 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-900"
+                aria-label="Back to Discover"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Discover
+              </button>
+            )}
             <h1 className="text-3xl font-bold">Events</h1>
             <p className="text-zinc-400 mt-1">
               {loadingLive

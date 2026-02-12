@@ -11,13 +11,21 @@ import {
   Users as UsersIcon,
   Download,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import useNotifications from "../hooks/useNotifications";
 import { useUser } from "../context/UserContext";
 import supabase from "lib/supabaseClient";
 import { markPwaInstalled } from "../constants/pwaInstall";
 import usePageVisibility from "../hooks/usePageVisibility";
 import { HomeRefreshContext } from "../pages/HomeSignedIn";
+
+function isStandalonePwaMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
 
 function timeAgo(date) {
   try {
@@ -68,6 +76,8 @@ export default function NotificationsBell() {
   const { user, sessionLoaded } = useUser();
   const homeRefreshEpoch = useContext(HomeRefreshContext);
   const [open, setOpen] = useState(false);
+  const [standalonePwa, setStandalonePwa] = useState(() => isStandalonePwaMode());
+  const location = useLocation();
   const {
     items,
     unread,
@@ -76,7 +86,10 @@ export default function NotificationsBell() {
     adminPendingError,
     markAllAsRead,
     markItemRead,
-  } = useNotifications({ refreshEpoch: homeRefreshEpoch, adminPendingOpen: open });
+  } = useNotifications({
+    refreshEpoch: homeRefreshEpoch,
+    adminPendingOpen: standalonePwa ? false : open,
+  });
   const ref = useRef(null);
   const navigate = useNavigate();
   const isVisible = usePageVisibility();
@@ -91,6 +104,22 @@ export default function NotificationsBell() {
   );
   const adminClubIdsKey = adminClubIds.join(",");
   const loadingAdminPendingVisible = open ? adminPendingLoading : false;
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(display-mode: standalone)");
+    const syncStandalone = () => setStandalonePwa(isStandalonePwaMode());
+    syncStandalone();
+    if (media?.addEventListener) media.addEventListener("change", syncStandalone);
+    else if (media?.addListener) media.addListener(syncStandalone);
+    return () => {
+      if (media?.removeEventListener) media.removeEventListener("change", syncStandalone);
+      else if (media?.removeListener) media.removeListener(syncStandalone);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (standalonePwa && open) setOpen(false);
+  }, [standalonePwa, open]);
 
   useEffect(() => {
     if (!open) {
@@ -234,7 +263,15 @@ export default function NotificationsBell() {
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (standalonePwa) {
+            navigate("/notifications", {
+              state: { from: `${location.pathname}${location.search}${location.hash}` },
+            });
+            return;
+          }
+          setOpen((v) => !v);
+        }}
         className={
           `relative inline-flex items-center justify-center h-9 w-9 rounded-full
            bg-white/10 hover:bg-white/15 ring-1 ring-white/10`
@@ -250,7 +287,7 @@ export default function NotificationsBell() {
         )}
       </button>
 
-      {open && (
+      {open && !standalonePwa && (
         <div
           className="absolute right-0 mt-2 w-[92vw] max-w-[360px] max-h-[70vh] overflow-auto rounded-2xl bg-black/90 backdrop-blur ring-1 ring-white/10 shadow-2xl left-1/2 -translate-x-1/2 sm:left-auto sm:-translate-x-0 sm:w-[360px]"
           role="listbox"

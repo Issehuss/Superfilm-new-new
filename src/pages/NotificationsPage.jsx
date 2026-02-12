@@ -1,8 +1,17 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useNotifications from "../hooks/useNotifications";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import supabase from "lib/supabaseClient";
 import { markPwaInstalled } from "../constants/pwaInstall";
+
+function isStandalonePwaMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
 
 function formatNotificationTime(dateString) {
   if (!dateString) return "";
@@ -33,17 +42,58 @@ function resolveNotificationHref(notification) {
 }
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isStandalonePwa, setIsStandalonePwa] = useState(() => isStandalonePwaMode());
   const { items, loading, loadMore, hasMore, markItemRead, markAllAsRead } = useNotifications({ pageSize: 30 });
   const [hiddenIds, setHiddenIds] = useState(() => new Set());
+  const fromPath = typeof location.state?.from === "string" ? location.state.from : null;
   const visibleItems = useMemo(
     () => items.filter((n) => !hiddenIds.has(n.id)),
     [items, hiddenIds]
   );
 
+  useEffect(() => {
+    const media = window.matchMedia?.("(display-mode: standalone)");
+    const syncStandalone = () => setIsStandalonePwa(isStandalonePwaMode());
+    syncStandalone();
+    if (media?.addEventListener) media.addEventListener("change", syncStandalone);
+    else if (media?.addListener) media.addListener(syncStandalone);
+    return () => {
+      if (media?.removeEventListener) media.removeEventListener("change", syncStandalone);
+      else if (media?.removeListener) media.removeListener(syncStandalone);
+    };
+  }, []);
+
+  const handleBack = useCallback(() => {
+    if (fromPath) {
+      navigate(fromPath);
+      return;
+    }
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/discover");
+  }, [fromPath, navigate]);
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 md:px-6 py-8 text-white">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Notifications</h1>
+        <div className="flex items-center gap-2">
+          {isStandalonePwa && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-sm text-zinc-200 hover:bg-zinc-900"
+              aria-label="Go back"
+              title="Back"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          <h1 className="text-2xl font-bold">Notifications</h1>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"

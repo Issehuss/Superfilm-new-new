@@ -72,7 +72,7 @@ export default function OurSocialsPage() {
                 </div>
 
                 <div className="shrink-0 text-sm text-zinc-400 group-hover:text-zinc-200">
-                  Open ↗
+                  Open link
                 </div>
               </div>
             </a>

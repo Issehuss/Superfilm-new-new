@@ -1102,6 +1102,29 @@ async function handleSaveAll() {
             </button>
           </div>
 
+          {/* Mobile section tabs */}
+          <div className="sm:hidden border-b border-zinc-800 bg-zinc-950/95 px-3 py-2">
+            <nav className="flex items-center gap-2 overflow-x-auto" aria-label="Edit profile sections">
+              {sections.map((s) => {
+                const isActive = active === s.id;
+                return (
+                  <button
+                    key={`mobile-tab-${s.id}`}
+                    type="button"
+                    onClick={() => setActive(s.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${
+                      isActive
+                        ? "border-yellow-500 bg-yellow-500/10 text-yellow-300"
+                        : "border-zinc-700 text-zinc-300"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
           {/* Sections */}
           <div className="p-3 sm:p-4 space-y-6 sm:space-y-8">
             {/* PROFILE */}

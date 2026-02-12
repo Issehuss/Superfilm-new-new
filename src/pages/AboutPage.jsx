@@ -4,6 +4,14 @@ import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import FooterMoreMenu from "../components/FooterMoreMenu";
 
+function isStandalonePwaMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /*                             About Page Component                           */
 /* -------------------------------------------------------------------------- */
@@ -71,38 +79,46 @@ export default function AboutPage() {
 /* -------------------------------------------------------------------------- */
 
 export function SuperFilmFooter() {
+  const standalonePwa = isStandalonePwaMode();
+
   return (
     <footer className="w-full border-t border-zinc-800 text-xs text-zinc-500 py-4 mt-10 bg-black">
-      <div className="mx-auto max-w-6xl w-full px-4 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div
+        className={`mx-auto max-w-6xl w-full px-4 flex flex-col md:flex-row items-center gap-3 ${
+          standalonePwa ? "justify-center" : "justify-between"
+        }`}
+      >
         {/* Left side: links */}
-        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-x-4">
-          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
-            <Link to="/about" className="hover:text-superfilm-yellow">
-              About Us
-            </Link>
-            <Link to="/socials" className="hover:text-superfilm-yellow">
-              Our Socials
-            </Link>
-            <Link to="/help" className="hover:text-superfilm-yellow">
-              Help
-            </Link>
-          </div>
+        {!standalonePwa && (
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-x-4">
+            <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
+              <Link to="/about" className="hover:text-superfilm-yellow">
+                About Us
+              </Link>
+              <Link to="/socials" className="hover:text-superfilm-yellow">
+                Our Socials
+              </Link>
+              <Link to="/help" className="hover:text-superfilm-yellow">
+                Help
+              </Link>
+            </div>
 
-          <div className="hidden md:block h-3 w-px bg-white/10" aria-hidden="true" />
+            <div className="hidden md:block h-3 w-px bg-white/10" aria-hidden="true" />
 
-          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
-            <Link to="/terms" className="hover:text-superfilm-yellow">
-              Terms &amp; Conditions
-            </Link>
-            <Link to="/privacy" className="hover:text-superfilm-yellow">
-              Privacy Policy
-            </Link>
-            <Link to="/cookie-policy" className="hover:text-superfilm-yellow">
-              Cookie Policy
-            </Link>
-            <FooterMoreMenu />
+            <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
+              <Link to="/terms" className="hover:text-superfilm-yellow">
+                Terms &amp; Conditions
+              </Link>
+              <Link to="/privacy" className="hover:text-superfilm-yellow">
+                Privacy Policy
+              </Link>
+              <Link to="/cookie-policy" className="hover:text-superfilm-yellow">
+                Cookie Policy
+              </Link>
+              <FooterMoreMenu />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right side: copyright */}
         <div className="text-zinc-600">
