@@ -1,10 +1,20 @@
 // src/pages/EventDetails.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import supabase from "lib/supabaseClient";
 import { useUser } from "../context/UserContext";
 
 const FALLBACK_EVENT_IMAGE = "https://placehold.co/600x800?text=Event";
+const REPORT_REASON_OPTIONS = [
+  { value: "spam", label: "Spam" },
+  { value: "harassment", label: "Harassment" },
+  { value: "hate", label: "Hate" },
+  { value: "nsfw", label: "NSFW" },
+  { value: "abuse", label: "Abuse" },
+  { value: "self-harm", label: "Self-harm" },
+  { value: "other", label: "Other" },
+];
 
 const EVENT_CACHE_KEY = "cache:event:";
 function readEventCache(slug) {
@@ -45,6 +55,13 @@ export default function EventDetails() {
   // Manage menu + unpublish modal
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Report modal (any user)
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("spam");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportErrorMsg, setReportErrorMsg] = useState("");
 
   // RSVP state
   const [rsvps, setRsvps] = useState([]);
@@ -284,6 +301,176 @@ export default function EventDetails() {
   );
   const isGoing = myRsvp?.status === "going";
 
+  function buildEventReportDetails(extraDetails) {
+    const lines = [
+      event?.title ? `Event: ${event.title}` : null,
+      event?.slug ? `Slug: ${event.slug}` : null,
+      event?.date ? `Date: ${event.date}` : null,
+      event?.venue ? `Venue: ${event.venue}` : null,
+    ].filter(Boolean);
+
+    const context = lines.join("\n");
+    const userText = (extraDetails || "").trim();
+    return [context, userText].filter(Boolean).join("\n\n") || null;
+  }
+
+  function isUniqueViolation(err) {
+    const code = (err?.code || "").toString();
+    const m = (err?.message || "").toLowerCase();
+    return (
+      code === "23505" ||
+      m.includes("duplicate key") ||
+      m.includes("already exists") ||
+      m.includes("unique constraint")
+    );
+  }
+
+  async function submitEventReport() {
+    if (!eventId) {
+      toast("Event is missing an ID. Please refresh and try again.");
+      return;
+    }
+    if (!user?.id) {
+      navigate("/auth", {
+        replace: true,
+        state: { from: `/events/${slug}` },
+      });
+      return;
+    }
+
+    setReportSubmitting(true);
+    setReportErrorMsg("");
+
+    try {
+      const detailsText = buildEventReportDetails(reportDetails);
+      const chosenReason = reportReason;
+
+      // Attempt a few payload shapes to tolerate schema differences.
+      const targetTypeCandidates = ["event", "general"];
+      const reasonCandidates =
+        chosenReason === "other" ? ["other"] : [chosenReason, "other"];
+      const reporterFieldCandidates = ["reporter_id", "created_by"];
+      const includeStatusCandidates = [true, false];
+
+      let inserted = null;
+      let lastError = null;
+      let usedContentReports = true;
+      let wasDuplicate = false;
+
+      const tryInsert = async (table, body) =>
+        supabase.from(table).insert(body).select().maybeSingle();
+
+      // Prefer content_reports. If it doesn't exist, fallback to reports.
+      const tableCandidates = ["content_reports", "reports"];
+
+      for (const table of tableCandidates) {
+        usedContentReports = table === "content_reports";
+
+        for (const targetType of targetTypeCandidates) {
+          for (const reason of reasonCandidates) {
+            const reasonPrefix =
+              reason !== chosenReason && chosenReason !== "other"
+                ? `Chosen reason: ${chosenReason}`
+                : null;
+            const finalDetails =
+              reasonPrefix && detailsText
+                ? `${reasonPrefix}\n\n${detailsText}`
+                : reasonPrefix
+                ? `${reasonPrefix}`
+                : detailsText;
+
+            for (const reporterField of reporterFieldCandidates) {
+              for (const includeStatus of includeStatusCandidates) {
+                const base =
+                  table === "content_reports"
+                    ? {
+                        [reporterField]: user.id,
+                        target_type: targetType,
+                        target_id: eventId,
+                        club_id: clubId || null,
+                        reason,
+                        details: finalDetails,
+                        ...(includeStatus ? { status: "open" } : {}),
+                      }
+                    : {
+                        club_id: clubId || null,
+                        target_type: targetType,
+                        target_id: eventId,
+                        reason,
+                        details: finalDetails,
+                        [reporterField]: user.id,
+                      };
+
+                // Clean undefined keys (important when reporterField isn't a real column)
+                const body = Object.fromEntries(
+                  Object.entries(base).filter(([, v]) => v !== undefined)
+                );
+
+                const { data, error } = await tryInsert(table, body);
+                if (!error) {
+                  inserted = data;
+                  break;
+                }
+
+                lastError = error;
+
+                // If the table doesn't exist, jump to the next table candidate.
+                const relMissing =
+                  (error?.code || "").toString() === "42P01" ||
+                  /relation .* does not exist/i.test(error?.message || "");
+                if (relMissing) break;
+
+                // If we hit a duplicate report constraint, treat as soft success.
+                if (isUniqueViolation(error)) {
+                  wasDuplicate = true;
+                  inserted = { id: null }; // placeholder
+                  break;
+                }
+              }
+              if (inserted) break;
+            }
+            if (inserted) break;
+          }
+          if (inserted) break;
+        }
+        if (inserted) break;
+      }
+
+      if (!inserted) {
+        const msg =
+          lastError?.message ||
+          lastError?.hint ||
+          lastError?.details ||
+          "Failed to submit report.";
+        throw new Error(msg);
+      }
+
+      // Best-effort mod notify (only makes sense for content_reports)
+      if (usedContentReports && inserted?.id) {
+        try {
+          await supabase.functions.invoke("notify-report", {
+            body: {
+              report: inserted,
+              reporter: { id: user.id, email: user.email ?? null },
+            },
+          });
+        } catch {
+          // ignore (report already saved)
+        }
+      }
+
+      toast(wasDuplicate ? "You’ve already reported this event." : "Report submitted. Thank you.");
+      setReportOpen(false);
+      setReportReason("spam");
+      setReportDetails("");
+    } catch (e) {
+      console.error("[EventDetails] report submit failed:", e);
+      setReportErrorMsg(e?.message || "Couldn’t submit report.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  }
+
   /* ===================== Unpublish Logic ===================== */
   async function handleUnpublish() {
     if (!clubId) {
@@ -515,6 +702,88 @@ export default function EventDetails() {
   /* ===================== MAIN PAGE ===================== */
   return (
     <div className="relative min-h-screen w-full text-white">
+      {/* Report modal */}
+      {reportOpen && (
+        <div className="fixed inset-0 z-[2000]">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => !reportSubmitting && setReportOpen(false)}
+          />
+
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100 shadow-2xl">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                <h3 className="font-semibold">Report event</h3>
+                <button
+                  type="button"
+                  onClick={() => !reportSubmitting && setReportOpen(false)}
+                  className="rounded-lg p-1 hover:bg-zinc-800"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="px-4 py-4 space-y-4">
+                <div>
+                  <label className="block text-sm mb-1">Reason</label>
+                  <select
+                    className="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2"
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    disabled={reportSubmitting}
+                  >
+                    {REPORT_REASON_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1">Details (optional)</label>
+                  <textarea
+                    rows={4}
+                    className="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 resize-none"
+                    placeholder="Tell us what happened…"
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    disabled={reportSubmitting}
+                  />
+                  <p className="mt-1 text-xs text-zinc-400">
+                    Event context (title/slug/date/venue) is added automatically.
+                  </p>
+                </div>
+
+                {reportErrorMsg && (
+                  <div className="text-sm text-red-400">{reportErrorMsg}</div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(false)}
+                  disabled={reportSubmitting}
+                  className="rounded-lg px-3 py-2 border border-zinc-800 hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEventReport}
+                  disabled={reportSubmitting}
+                  className="rounded-lg px-3 py-2 bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50"
+                >
+                  {reportSubmitting ? "Submitting…" : "Submit report"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== Cinematic Backdrop ===== */}
       <div
         className="absolute inset-0 z-0"
@@ -561,8 +830,8 @@ export default function EventDetails() {
                 {event.title}
               </h1>
 
-              {/* Manage Menu (creator only) */}
-              {isCreator && (
+              {/* Menu (report for users, manage for creator) */}
+              {(user || isCreator) && (
                 <div className="relative">
                   <button
                     onClick={() => setMenuOpen((v) => !v)}
@@ -583,21 +852,44 @@ export default function EventDetails() {
                       "
                     >
                       <div className="px-4 py-2 text-zinc-300 border-b border-white/10">
-                        Manage Event
+                        Event Options
                       </div>
 
                       <button
                         className="
-                          w-full text-left px-4 py-2 text-red-400
-                          hover:bg-red-400/10 transition
+                          w-full text-left px-4 py-2 text-zinc-200
+                          hover:bg-white/10 transition
                         "
                         onClick={() => {
                           setMenuOpen(false);
-                          setConfirmOpen(true);
+                          if (!user?.id) {
+                            navigate("/auth", {
+                              replace: true,
+                              state: { from: `/events/${slug}` },
+                            });
+                            return;
+                          }
+                          setReportErrorMsg("");
+                          setReportOpen(true);
                         }}
                       >
-                        Unpublish Event?
+                        Report Event
                       </button>
+
+                      {isCreator && (
+                        <button
+                          className="
+                            w-full text-left px-4 py-2 text-red-400
+                            hover:bg-red-400/10 transition
+                          "
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setConfirmOpen(true);
+                          }}
+                        >
+                          Unpublish Event?
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

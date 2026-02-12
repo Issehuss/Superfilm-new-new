@@ -21,6 +21,7 @@ export default function LeaderboardWideCard({
   homeClub = null, // club shown in Home "Load club" section
   homeClubImage = "", // sanitized URL from Home (optional)
   homeClubLoading = false,
+  isStandalonePwa = false,
 }) {
   const navigate = useNavigate();
   const { user, sessionLoaded } = useUser();
@@ -210,22 +211,28 @@ export default function LeaderboardWideCard({
     : summaryError && summaryError.message !== "no-user"
     ? summaryError.message || "Failed to load leaderboard info."
     : "Tap for full leaderboard & playoffs";
+  const cardPaddingClass = isStandalonePwa ? "px-5 py-[18px]" : "px-5 py-4";
+  const layoutClass = isStandalonePwa
+    ? "grid-cols-[minmax(0,1.45fr)_auto_auto] gap-3"
+    : "grid-cols-3";
+  const featuredGapClass = isStandalonePwa ? "gap-4" : "gap-3";
+  const featuredAvatarSizeClass = isStandalonePwa ? "h-12 w-12" : "h-10 w-10";
 
   return (
     <button
       type="button"
       onClick={() => navigate("/leaderboard")}
-      className={`w-full rounded-2xl border border-zinc-800 bg-black/40 px-5 py-4 text-left hover:border-zinc-700 transition ${className}`}
+      className={`w-full rounded-2xl border border-zinc-800 bg-black/40 text-left hover:border-zinc-700 transition ${cardPaddingClass} ${className}`}
       title="Open Leaderboard & Playoffs"
     >
-      <div className="grid grid-cols-3 items-center">
+      <div className={`grid items-center ${layoutClass}`}>
         {/* Left: featured club */}
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center ${featuredGapClass}`}>
           <a
             href={clubHref}
             onClick={(e) => e.stopPropagation()}
             title="Open club profile"
-            className="relative h-10 w-10 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800 block"
+            className={`relative ${featuredAvatarSizeClass} overflow-hidden rounded-full bg-zinc-900 ring-1 ring-zinc-800 block`}
           >
             {showFeaturedSkeleton ? (
               <div className="h-full w-full animate-pulse bg-zinc-900" />

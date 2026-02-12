@@ -5,6 +5,7 @@ import {
   Settings,
   User as UserIcon,
   ChevronDown,
+  ChevronLeft,
   KeySquare,
   BarChart3,
   Lock,
@@ -39,6 +40,7 @@ export default function AccountMenu({ className = "" }) {
 
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
   const ref = useRef(null);
   const btnRef = useRef(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -84,6 +86,10 @@ export default function AccountMenu({ className = "" }) {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) setLegalOpen(false);
+  }, [open]);
 
   // if no user, don't show menu
   if (!user) return null;
@@ -163,6 +169,11 @@ export default function AccountMenu({ className = "" }) {
     navigate("/terms");
   };
 
+  const goPrivacy = () => {
+    setOpen(false);
+    navigate("/privacy");
+  };
+
   const goHelp = () => {
     setOpen(false);
     navigate("/help");
@@ -224,6 +235,132 @@ export default function AccountMenu({ className = "" }) {
           className="absolute right-0 mt-2 w-64 rounded-2xl bg-black/90 backdrop-blur ring-1 ring-white/10 shadow-2xl origin-top-right"
           style={{ transformOrigin: "top right" }}
         >
+          {legalOpen ? (
+            <>
+              <div className="px-3 py-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => setLegalOpen(false)}
+                  className="inline-flex items-center gap-1 rounded-xl px-2 py-1 text-xs text-zinc-300 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-yellow-400/60"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </button>
+                <div className="text-sm font-semibold text-white">Legal &amp; Policies</div>
+              </div>
+
+              <div className="h-px bg-white/10" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/cookie-policy");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Cookie Policy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/billing-terms");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Subscription &amp; Billing Terms</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/data-retention");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Data Retention Policy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/subprocessors");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Subprocessors &amp; Data Partners</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/acceptable-use");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Acceptable Use Policy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  navigate("/community-guidelines");
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Community Guidelines</span>
+              </button>
+
+              <button
+                type="button"
+                disabled
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-2xl opacity-60 cursor-not-allowed"
+                aria-disabled="true"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Copyright Policy</span>
+                <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-400">
+                  Soon
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new Event("open-cookie-settings"));
+                }}
+                role="menuitem"
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
+              >
+                <Lock className="h-4 w-4" />
+                <span>Cookie Settings</span>
+              </button>
+
+              <div className="h-px bg-white/10 my-1" />
+            </>
+          ) : (
+            <>
           {/* header */}
           <div className="px-3 py-2">
             <div className="text-sm font-semibold truncate flex items-center gap-2">
@@ -372,12 +509,12 @@ export default function AccountMenu({ className = "" }) {
             <>
               <button
                 type="button"
-                onClick={goAbout}
+                onClick={goPrivacy}
                 role="menuitem"
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
               >
-                <Info className="h-4 w-4" />
-                <span>About</span>
+                <FileText className="h-4 w-4" />
+                <span>Privacy Policy</span>
               </button>
 
               <button
@@ -387,27 +524,17 @@ export default function AccountMenu({ className = "" }) {
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
               >
                 <FileText className="h-4 w-4" />
-                <span>Terms</span>
+                <span>Terms &amp; Conditions</span>
               </button>
 
               <button
                 type="button"
-                onClick={goSocials}
+                onClick={() => setLegalOpen(true)}
                 role="menuitem"
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
               >
-                <Share2 className="h-4 w-4" />
-                <span>Our Socials</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={goHelp}
-                role="menuitem"
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/10 rounded-2xl"
-              >
-                <HelpCircle className="h-4 w-4" />
-                <span>Help</span>
+                <FileText className="h-4 w-4" />
+                <span>More Legal &amp; Policies</span>
               </button>
 
               <div className="h-px bg-white/10 my-1" />
@@ -429,7 +556,8 @@ export default function AccountMenu({ className = "" }) {
             <LogOut className="h-4 w-4" />
             <span>{signingOut ? "Signing out..." : "Sign out"}</span>
           </button>
-
+            </>
+          )}
         </div>
       )}
     </div>

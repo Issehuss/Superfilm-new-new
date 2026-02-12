@@ -3,6 +3,20 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import supabase from "lib/supabaseClient";
 
+function calculateAge(dateString) {
+  const today = new Date();
+  const birthDate = new Date(dateString);
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  return age;
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
 
@@ -11,6 +25,8 @@ export default function AuthPage() {
   const [mode, setMode] = useState(initialMode); // 'signin' | 'signup'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [dob, setDob] = useState("");
+  const [ageError, setAgeError] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null); // { type: 'success' | 'error', text: string } | null
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -36,6 +52,24 @@ export default function AuthPage() {
   const handleSignUp = async (e) => {
     e.preventDefault();
     setMsg(null);
+    const age = calculateAge(dob);
+
+    if (!dob) {
+      setAgeError("Please enter your date of birth.");
+      return;
+    }
+
+    if (!Number.isFinite(age)) {
+      setAgeError("Please enter a valid date of birth.");
+      return;
+    }
+
+    if (age < 18) {
+      setAgeError("You must be at least 18 years old to join SuperFilm.");
+      return;
+    }
+
+    setAgeError("");
     if (!acceptedTerms) {
       setMsg({ type: "error", text: "Please agree to the Terms before creating an account." });
       return;
@@ -45,7 +79,7 @@ export default function AuthPage() {
       const { error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { marketing_opt_in: marketingOptIn } },
+        options: { data: { marketing_opt_in: marketingOptIn, date_of_birth: dob } },
       });
       if (error) throw error;
       setMsg({
@@ -53,6 +87,7 @@ export default function AuthPage() {
         text: "Check your email to confirm your account. Please check your junk/spam folder too. After clicking the link, return here to sign in.",
       });
       setMode("signin");
+      setDob("");
     } catch (err) {
       setMsg({ type: "error", text: err?.message || "Sign-up failed." });
     } finally {
@@ -86,6 +121,28 @@ export default function AuthPage() {
           placeholder="••••••••"
           required
         />
+
+        {mode === "signup" && (
+          <div className="signup-field mb-3">
+            <label className="mb-1 block text-sm text-zinc-300">Date of Birth</label>
+            <input
+              type="date"
+              value={dob}
+              onChange={(e) => {
+                setDob(e.target.value);
+                if (ageError) setAgeError("");
+              }}
+              className="w-full rounded-lg bg-zinc-800 px-3 py-2 outline-none ring-1 ring-zinc-700 focus:ring-yellow-500"
+              required
+            />
+
+            <p className="signup-age-note text-zinc-400">
+              You must be at least 18 years old to use SuperFilm.
+            </p>
+
+            {ageError && <p className="signup-error">{ageError}</p>}
+          </div>
+        )}
 
         {mode === "signin" && (
           <div className="mb-4 flex items-center justify-end">
@@ -140,6 +197,20 @@ export default function AuthPage() {
           {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Sign up"}
         </button>
 
+        {mode === "signup" && (
+          <p className="signup-legal mt-3 text-xs text-zinc-400">
+            By creating an account, you confirm that you are at least 18 years old and agree to our{" "}
+            <Link to="/terms" className="underline hover:text-zinc-200">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="underline hover:text-zinc-200">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        )}
+
         {msg && (
           <div className={`mt-3 text-sm ${msg.type === "error" ? "text-red-400" : "text-green-400"}`}>
             {msg.text}
@@ -152,7 +223,11 @@ export default function AuthPage() {
               Don&apos;t have an account?{" "}
               <button
                 type="button"
-                onClick={() => setMode("signup")}
+                onClick={() => {
+                  setMode("signup");
+                  setMsg(null);
+                  setAgeError("");
+                }}
                 className="text-yellow-400 hover:underline"
               >
                 Sign up
@@ -163,7 +238,11 @@ export default function AuthPage() {
               Already have an account?{" "}
               <button
                 type="button"
-                onClick={() => setMode("signin")}
+                onClick={() => {
+                  setMode("signin");
+                  setMsg(null);
+                  setAgeError("");
+                }}
                 className="text-yellow-400 hover:underline"
               >
                 Sign in

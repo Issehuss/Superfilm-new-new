@@ -3,7 +3,9 @@
 
 /* header */
 .page-head{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.25rem;}
+.head-copy{min-width:0;}
 .head-actions{display:flex;gap:.75rem;align-items:center;}
+.head-cta-row{display:flex;gap:.75rem;align-items:center;}
 .search{background:#111215;color:#fff;border:1px solid #3f3f46;border-radius:9999px;padding:.6rem .9rem;min-width:260px;outline:none;}
 .search:focus{border-color:rgb(var(--brand-yellow)/.7);box-shadow:0 0 0 2px rgb(var(--brand-yellow)/.25);}
 
@@ -19,6 +21,9 @@
 .poster-media img{width:100%;height:100%;object-fit:cover;display:block;}
 .poster-date{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.7);border:1px solid #2a2b31;border-radius:10px;padding:6px 8px;line-height:1;text-align:center;font-weight:800;color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.35);}
 .poster-date .m{font-size:.7rem;color:#e5e7eb}.poster-date .d{font-size:1.1rem;margin-top:2px}
+.poster-going-badge{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:9999px;background:rgba(16,185,129,.92);border:1px solid rgba(5,150,105,.65);color:#06281e;font-weight:900;font-size:.78rem;letter-spacing:.01em;box-shadow:0 10px 20px rgba(0,0,0,.35);}
+.poster-going-dot{width:8px;height:8px;border-radius:9999px;background:rgba(255,255,255,.95);box-shadow:0 0 0 2px rgba(0,0,0,.18);}
+.poster-hidden-badge{position:absolute;bottom:10px;right:10px;display:inline-flex;align-items:center;padding:6px 10px;border-radius:9999px;background:rgba(239,68,68,.88);border:1px solid rgba(239,68,68,.55);color:#2a0707;font-weight:900;font-size:.78rem;letter-spacing:.01em;box-shadow:0 10px 20px rgba(0,0,0,.35);}
 .poster-info{padding:.85rem;}
 .poster-info .title{font-weight:800;color:#fff;margin:0 0 .35rem;font-size:1.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .poster-info .meta{color:#cbd5e1;font-size:.85rem;display:flex;align-items:center;gap:.5rem;}
@@ -37,6 +42,85 @@
 .btn.ghost{background:#111215;color:#e5e5e5;border:1px solid #3f3f46;}
 .btn.ghost:hover{border-color:#52525b;}
 .btn.sm{padding:8px 12px;border-radius:10px;font-size:.95rem;}
+
+/* PWA/mobile standalone polish */
+.events-page.events-page-pwa .page-head{
+  flex-direction:column;
+  align-items:stretch;
+  gap:.85rem;
+}
+.events-page.events-page-pwa .head-copy{
+  max-width:100%;
+}
+.events-page.events-page-pwa .head-copy p{
+  margin-top:.45rem;
+  line-height:1.45;
+}
+.events-page.events-page-pwa .head-actions{
+  width:100%;
+  flex-direction:column;
+  align-items:stretch;
+  gap:.65rem;
+}
+.events-page.events-page-pwa .search{
+  width:100%;
+  min-width:0;
+  padding:.72rem 1rem;
+}
+.events-page.events-page-pwa .head-cta-row{
+  justify-content:flex-end;
+  flex-wrap:wrap;
+}
+.events-page.events-page-pwa .poster-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.events-page.events-page-pwa .poster-card{
+  border-radius:12px;
+}
+.events-page.events-page-pwa .poster-info{
+  padding:.65rem;
+}
+.events-page.events-page-pwa .poster-info .title{
+  font-size:.95rem;
+  margin-bottom:.3rem;
+}
+.events-page.events-page-pwa .poster-info .meta{
+  font-size:.73rem;
+  gap:.35rem;
+}
+.events-page.events-page-pwa .poster-info .summary{
+  font-size:.76rem;
+  margin-top:.4rem;
+  color:#cbd5e1;
+  line-height:1.3;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+.events-page.events-page-pwa .poster-info .tags{
+  margin-top:.38rem;
+  gap:.28rem;
+}
+.events-page.events-page-pwa .poster-info .tag{
+  font-size:.68rem;
+  padding:2px 6px;
+}
+.events-page.events-page-pwa .poster-date{
+  top:8px;
+  left:8px;
+  border-radius:9px;
+  padding:5px 7px;
+}
+.events-page.events-page-pwa .poster-date .m{font-size:.62rem;}
+.events-page.events-page-pwa .poster-date .d{font-size:1rem;}
+
+@media (max-width:340px){
+  .events-page.events-page-pwa .poster-grid{
+    grid-template-columns:1fr;
+  }
+}
 
 /* ---------------- Modal ---------------- */
 .events-modal-overlay{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto;}
@@ -348,5 +432,3 @@
 .poster-card .poster-media::before {
   content: none !important;
 }
-
-

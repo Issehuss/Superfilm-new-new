@@ -39,6 +39,7 @@ function typeIcon(type) {
   if (type?.startsWith("club.role")) return <Crown size={16} className="shrink-0" />;
   if (type?.startsWith("profile.follow")) return <UserPlus size={16} className="shrink-0" />;
   if (type?.startsWith("screening.")) return <CalendarClock size={16} className="shrink-0" />;
+  if (type?.startsWith("event.") || type?.startsWith("event_")) return <CalendarClock size={16} className="shrink-0" />;
   if (type?.startsWith("pwa.install")) return <Download size={16} className="shrink-0" />;
   return <Bell size={16} className="shrink-0" />;
 }
@@ -47,6 +48,10 @@ function resolveNotificationHref(notification) {
   const d = notification?.data || {};
   if (notification?.type?.startsWith("pwa.install")) {
     return "/pwa";
+  }
+  if (notification?.type?.startsWith("event.") || notification?.type?.startsWith("event_")) {
+    const slug = d.event_slug || d.eventSlug;
+    if (slug) return `/events/${slug}`;
   }
   if (notification?.type?.startsWith("club.membership.pending")) {
     const clubParam = d.slug || d.club_slug || notification?.club_id;

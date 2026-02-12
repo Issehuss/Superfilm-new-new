@@ -13,13 +13,44 @@ const routes = [
   { path: "/leaderboard", changefreq: "weekly", priority: "0.6" },
   { path: "/about", changefreq: "monthly", priority: "0.4" },
   { path: "/terms", changefreq: "monthly", priority: "0.3" },
+  { path: "/privacy", changefreq: "monthly", priority: "0.3" },
+  {
+    loc: "https://www.superfilm.uk/cookie-policy",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
+  {
+    loc: "https://www.superfilm.uk/acceptable-use",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
+  {
+    loc: "https://www.superfilm.uk/community-guidelines",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
+  {
+    loc: "https://www.superfilm.uk/billing-terms",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
+  {
+    loc: "https://www.superfilm.uk/data-retention",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
+  {
+    loc: "https://www.superfilm.uk/subprocessors",
+    changefreq: "yearly",
+    priority: "0.3",
+  },
   { path: "/socials", changefreq: "monthly", priority: "0.3" },
   { path: "/help", changefreq: "monthly", priority: "0.3" },
 ];
 
 const urls = routes
   .map((route) => {
-    const loc = `${baseUrl}${route.path}`;
+    const loc = route.loc || `${baseUrl}${route.path || ""}`;
     return [
       "  <url>",
       `    <loc>${loc}</loc>`,

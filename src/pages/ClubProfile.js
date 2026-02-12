@@ -109,6 +109,15 @@ const clubCacheKeyById = (id) => `sf.club.cache.v1:id:${id}`;
 const clubSlugToIdKey = (slug) => `sf.club.slugToId.v1:${slug}`;
 const clubCacheKeyLegacy = (param) => `sf.club.cache.v1:${param}`;
 const CLUB_BANNER_ASPECT = 1152 / 276;
+const REPORT_REASON_OPTIONS = [
+  { value: "spam", label: "Spam" },
+  { value: "harassment", label: "Harassment" },
+  { value: "hate", label: "Hate" },
+  { value: "nsfw", label: "NSFW" },
+  { value: "abuse", label: "Abuse" },
+  { value: "self-harm", label: "Self-harm" },
+  { value: "other", label: "Other" },
+];
 
 const readClubCache = ({ param, id, slug } = {}) => {
   try {
@@ -1056,6 +1065,12 @@ const [persistedPosterPath, setPersistedPosterPath] = useState(null);
   const [showFeaturedTip, setShowFeaturedTip] = useState(false);
   const [nextSearch, setNextSearch] = useState('');
   const [nextSearchResults, setNextSearchResults] = useState([]);
+  const [clubMenuOpen, setClubMenuOpen] = useState(false);
+  const [clubReportOpen, setClubReportOpen] = useState(false);
+  const [clubReportReason, setClubReportReason] = useState("spam");
+  const [clubReportDetails, setClubReportDetails] = useState("");
+  const [clubReportSubmitting, setClubReportSubmitting] = useState(false);
+  const [clubReportErrorMsg, setClubReportErrorMsg] = useState("");
 
   const [showBannerCropper, setShowBannerCropper] = useState(false);
   const [rawBannerImage, setRawBannerImage] = useState(null);
@@ -1075,6 +1090,7 @@ const [newName, setNewName] = useState('');
   // --- poster ↔ teaser height sync ---
 const posterRef = useRef(null);
 const teaserWrapRef = useRef(null);
+const clubBannerMenuRef = useRef(null);
 const [teaserHeight, setTeaserHeight] = useState(null);
 const [members, setMembers] = useState([]);
 const normalizedMembers = useMemo(
@@ -1141,6 +1157,24 @@ const [isMounted, setIsMounted] = useState(false);
 useEffect(() => {
   setIsMounted(true);
 }, []);
+
+useEffect(() => {
+  if (!clubMenuOpen) return;
+  const onDocPointerDown = (event) => {
+    if (!clubBannerMenuRef.current) return;
+    if (clubBannerMenuRef.current.contains(event.target)) return;
+    setClubMenuOpen(false);
+  };
+  const onDocKeyDown = (event) => {
+    if (event.key === "Escape") setClubMenuOpen(false);
+  };
+  document.addEventListener("mousedown", onDocPointerDown);
+  document.addEventListener("keydown", onDocKeyDown);
+  return () => {
+    document.removeEventListener("mousedown", onDocPointerDown);
+    document.removeEventListener("keydown", onDocKeyDown);
+  };
+}, [clubMenuOpen]);
 
 // --------------------------------------------------
 // Derived membership + permissions (SAFE ORDER)
@@ -2454,6 +2488,177 @@ const postActivity = async (summary) => {
   }
 };
 
+const buildClubReportDetails = (extraDetails) => {
+  const lines = [
+    club?.name ? `Club: ${club.name}` : null,
+    club?.slug ? `Slug: ${club.slug}` : null,
+    club?.id ? `Club ID: ${club.id}` : null,
+    typeof club?.isPrivate === "boolean"
+      ? `Privacy: ${club.isPrivate ? "private" : "public"}`
+      : null,
+  ].filter(Boolean);
+  const context = lines.join("\n");
+  const userText = (extraDetails || "").trim();
+  return [context, userText].filter(Boolean).join("\n\n") || null;
+};
+
+const isUniqueViolation = (err) => {
+  const code = (err?.code || "").toString();
+  const message = (err?.message || "").toLowerCase();
+  return (
+    code === "23505" ||
+    message.includes("duplicate key") ||
+    message.includes("already exists") ||
+    message.includes("unique constraint")
+  );
+};
+
+const submitClubReport = async () => {
+  if (!club?.id) {
+    toast.error("Club is missing an ID. Please refresh and try again.");
+    return;
+  }
+
+  if (!user?.id) {
+    navigate("/auth", {
+      replace: true,
+      state: { from: `/clubs/${club.slug || club.id}` },
+    });
+    return;
+  }
+
+  setClubReportSubmitting(true);
+  setClubReportErrorMsg("");
+
+  try {
+    const detailsText = buildClubReportDetails(clubReportDetails);
+    const chosenReason = clubReportReason;
+
+    // Keep this tolerant across old/new DB schemas.
+    const targetTypeCandidates = ["club", "general"];
+    const reasonCandidates =
+      chosenReason === "other" ? ["other"] : [chosenReason, "other"];
+    const reporterFieldCandidates = ["reporter_id", "created_by"];
+    const includeStatusCandidates = [true, false];
+    const tableCandidates = ["content_reports", "reports"];
+
+    let inserted = null;
+    let lastError = null;
+    let usedContentReports = true;
+    let wasDuplicate = false;
+
+    for (const table of tableCandidates) {
+      usedContentReports = table === "content_reports";
+
+      for (const targetType of targetTypeCandidates) {
+        for (const reason of reasonCandidates) {
+          const reasonPrefix =
+            reason !== chosenReason && chosenReason !== "other"
+              ? `Chosen reason: ${chosenReason}`
+              : null;
+          const finalDetails =
+            reasonPrefix && detailsText
+              ? `${reasonPrefix}\n\n${detailsText}`
+              : reasonPrefix
+              ? reasonPrefix
+              : detailsText;
+
+          for (const reporterField of reporterFieldCandidates) {
+            for (const includeStatus of includeStatusCandidates) {
+              const base =
+                table === "content_reports"
+                  ? {
+                      [reporterField]: user.id,
+                      target_type: targetType,
+                      target_id: club.id,
+                      club_id: club.id,
+                      reason,
+                      details: finalDetails,
+                      ...(includeStatus ? { status: "open" } : {}),
+                    }
+                  : {
+                      [reporterField]: user.id,
+                      target_type: targetType,
+                      target_id: club.id,
+                      club_id: club.id,
+                      reason,
+                      details: finalDetails,
+                    };
+
+              const body = Object.fromEntries(
+                Object.entries(base).filter(([, v]) => v !== undefined)
+              );
+
+              const { data, error } = await supabase
+                .from(table)
+                .insert(body)
+                .select()
+                .maybeSingle();
+
+              if (!error) {
+                inserted = data;
+                break;
+              }
+
+              lastError = error;
+
+              const missingRelation =
+                (error?.code || "").toString() === "42P01" ||
+                /relation .* does not exist/i.test(error?.message || "");
+              if (missingRelation) break;
+
+              if (isUniqueViolation(error)) {
+                wasDuplicate = true;
+                inserted = { id: null };
+                break;
+              }
+            }
+            if (inserted) break;
+          }
+          if (inserted) break;
+        }
+        if (inserted) break;
+      }
+      if (inserted) break;
+    }
+
+    if (!inserted) {
+      throw new Error(
+        lastError?.message ||
+          lastError?.hint ||
+          lastError?.details ||
+          "Failed to submit report."
+      );
+    }
+
+    if (usedContentReports && inserted?.id) {
+      try {
+        await supabase.functions.invoke("notify-report", {
+          body: {
+            report: inserted,
+            reporter: { id: user.id, email: user.email ?? null },
+          },
+        });
+      } catch {
+        // report is already saved; ignore email/notify failures
+      }
+    }
+
+    toast.success(
+      wasDuplicate ? "You’ve already reported this club." : "Report submitted. Thank you."
+    );
+    setClubMenuOpen(false);
+    setClubReportOpen(false);
+    setClubReportReason("spam");
+    setClubReportDetails("");
+  } catch (e) {
+    console.error("[ClubProfile] report submit failed:", e);
+    setClubReportErrorMsg(e?.message || "Couldn’t submit report.");
+  } finally {
+    setClubReportSubmitting(false);
+  }
+};
+
    
 
 
@@ -2619,6 +2824,86 @@ const postActivity = async (summary) => {
   
   return (
       <div className="min-h-screen bg-black text-white">
+{clubReportOpen && (
+  <div className="fixed inset-0 z-[2100]">
+    <div
+      className="absolute inset-0 bg-black/60"
+      onClick={() => !clubReportSubmitting && setClubReportOpen(false)}
+    />
+
+    <div className="absolute inset-0 flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-950 text-zinc-100 shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+          <h3 className="font-semibold">Report club</h3>
+          <button
+            type="button"
+            onClick={() => !clubReportSubmitting && setClubReportOpen(false)}
+            className="rounded-lg p-1 hover:bg-zinc-800"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-4 py-4 space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Reason</label>
+            <select
+              className="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2"
+              value={clubReportReason}
+              onChange={(e) => setClubReportReason(e.target.value)}
+              disabled={clubReportSubmitting}
+            >
+              {REPORT_REASON_OPTIONS.map((reason) => (
+                <option key={reason.value} value={reason.value}>
+                  {reason.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">Details (optional)</label>
+            <textarea
+              rows={4}
+              className="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 resize-none"
+              placeholder="Tell us what happened…"
+              value={clubReportDetails}
+              onChange={(e) => setClubReportDetails(e.target.value)}
+              disabled={clubReportSubmitting}
+            />
+            <p className="mt-1 text-xs text-zinc-400">
+              Club context (name/slug/id/privacy) is added automatically.
+            </p>
+          </div>
+
+          {clubReportErrorMsg && (
+            <div className="text-sm text-red-400">{clubReportErrorMsg}</div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setClubReportOpen(false)}
+            disabled={clubReportSubmitting}
+            className="rounded-lg px-3 py-2 border border-zinc-800 hover:bg-zinc-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submitClubReport}
+            disabled={clubReportSubmitting}
+            className="rounded-lg px-3 py-2 bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-50"
+          >
+            {clubReportSubmitting ? "Submitting…" : "Submit report"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 {/* Banner */}
 {isMounted && (
   <div
@@ -2754,6 +3039,47 @@ const postActivity = async (summary) => {
         >
           {isEditing ? "Finish Editing" : "Edit"}
         </button>
+      )}
+    </div>
+
+    {/* BOTTOM-RIGHT: report menu */}
+    <div ref={clubBannerMenuRef} className="absolute bottom-3 right-3 z-30">
+      <button
+        type="button"
+        onClick={() => setClubMenuOpen((v) => !v)}
+        className="inline-flex items-center justify-center rounded-full bg-black/65 hover:bg-black/85 p-2 ring-1 ring-white/15"
+        aria-label="Open club options"
+        aria-haspopup="menu"
+        aria-expanded={clubMenuOpen ? "true" : "false"}
+      >
+        <MoreHorizontal size={18} />
+      </button>
+
+      {clubMenuOpen && (
+        <div
+          className="absolute right-0 mt-2 w-44 rounded-xl border border-white/10 bg-black/80 p-1 shadow-2xl backdrop-blur"
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setClubMenuOpen(false);
+              if (!user?.id) {
+                navigate("/auth", {
+                  replace: true,
+                  state: { from: `/clubs/${club.slug || club.id}` },
+                });
+                return;
+              }
+              setClubReportErrorMsg("");
+              setClubReportOpen(true);
+            }}
+            className="w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-100 hover:bg-white/10"
+          >
+            Report club
+          </button>
+        </div>
       )}
     </div>
   </div>

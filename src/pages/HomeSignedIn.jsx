@@ -79,6 +79,14 @@ function formatDateTime(iso) {
   }
 }
 
+function isStandalonePwaMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
+
 /* ------------ TMDB proxy (unchanged) ------------ */
 async function tmdbProxy(path, query = {}) {
   const cleanPath = String(path || "").startsWith("/") ? path : `/${path || ""}`;
@@ -304,6 +312,9 @@ export default function HomeSignedIn() {
   const [nowPlaying, setNowPlaying] = useState([]);
   const [deckIndex, setDeckIndex] = useState(0);
   const [deckLoading, setDeckLoading] = useState(true);
+  const [isStandalonePwa, setIsStandalonePwa] = useState(() =>
+    isStandalonePwaMode()
+  );
   const recentActivity = useMemo(() => (activity || []).slice(0, 3), [activity]);
   const clubImage = useMemo(() => {
     if (!club) return CLUB_PLACEHOLDER;
@@ -324,6 +335,20 @@ export default function HomeSignedIn() {
   const [wlIndex, setWlIndex] = useState(0);
   const [wlMeta, setWlMeta] = useState({});
   const isPageVisible = usePageVisibility();
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(display-mode: standalone)");
+    const syncStandalone = () => setIsStandalonePwa(isStandalonePwaMode());
+    syncStandalone();
+
+    if (media?.addEventListener) media.addEventListener("change", syncStandalone);
+    else if (media?.addListener) media.addListener(syncStandalone);
+
+    return () => {
+      if (media?.removeEventListener) media.removeEventListener("change", syncStandalone);
+      else if (media?.removeListener) media.removeListener(syncStandalone);
+    };
+  }, []);
 
   /* ============ 1) home feed via RPC ============ */
   const {
@@ -1068,57 +1093,134 @@ export default function HomeSignedIn() {
 
           <div className="p-5 pt-0">
             {wlLoading && !hasWatchlist ? (
-              <div className="h-[380px] md:h-[440px] rounded-xl bg-white/10 animate-pulse" />
+              <div
+                className={`rounded-xl bg-white/10 animate-pulse ${
+                  isStandalonePwa ? "h-[300px]" : "h-[380px] md:h-[440px]"
+                }`}
+              />
             ) : !hasWatchlist ? (
-              <div className="h-[380px] md:h-[440px] rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-sm text-zinc-400">
+              <div
+                className={`rounded-xl border border-white/10 bg-white/5 flex items-center justify-center text-sm text-zinc-400 ${
+                  isStandalonePwa ? "h-[300px]" : "h-[380px] md:h-[440px]"
+                }`}
+              >
                 Add films to your watchlist.
               </div>
             ) : (
-              <div className="relative h-[420px] md:h-[520px] rounded-xl ring-1 ring-white/10 p-3 overflow-hidden">
+              <div
+                className={`relative rounded-xl ring-1 ring-white/10 overflow-hidden ${
+                  isStandalonePwa ? "h-[300px] p-3" : "h-[420px] md:h-[520px] p-3"
+                }`}
+              >
                 <Link
                   to={`/movie/${wlCurrent?.id ?? wlCurrent?.movie_id}`}
-                  className="flex h-full w-full flex-col items-center justify-start"
+                  className={
+                    isStandalonePwa
+                      ? "flex h-full w-full items-stretch gap-3"
+                      : "flex h-full w-full flex-col items-center justify-start"
+                  }
                   title={wlCurrent?.title || ""}
                   aria-label={wlCurrent?.title || "Watchlist item"}
                 >
-                  <div className="flex-1 flex items-center justify-center w-full">
-                    <div
-                      className={`
-                        w-full max-w-[360px] mx-auto
-                        md:w-[72%] md:h-[72%] md:aspect-[2/3] md:max-w-none
-                        sm:h-[86%] sm:w-[78%]
-                      `}
-                    >
-                    {wlPoster ? (
-                      <TmdbImage
-                        key={`${wlCurrent?.id || wlCurrent?.movie_id}-${wlIndex}`}
-                        src={wlPoster}
-                        alt={wlCurrent?.title || "Poster"}
-                        className="h-full w-full"
-                        imgClassName="h-full w-full object-contain rounded-lg shadow-lg transition-opacity duration-500 opacity-100"
-                        draggable={false}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-white/10 rounded-lg" />
-                    )}
-                  </div>
-                </div>
-
-                  <div className="mt-3 w-full text-center">
-                    <div className="text-sm font-semibold line-clamp-1">
-                      {wlCurrent?.title || ""}
-                    </div>
-                    {wlRelease && (
-                      <div className="text-[11px] text-zinc-400 mt-0.5">
-                        {new Date(wlRelease).toLocaleDateString()}
+                  {isStandalonePwa ? (
+                    <>
+                      <div className="h-full w-[42%] min-w-[108px] max-w-[136px] shrink-0">
+                        {wlPoster ? (
+                          <TmdbImage
+                            key={`${wlCurrent?.id || wlCurrent?.movie_id}-${wlIndex}`}
+                            src={wlPoster}
+                            alt={wlCurrent?.title || "Poster"}
+                            className="h-full w-full"
+                            imgClassName="h-full w-full object-cover rounded-lg shadow-lg transition-opacity duration-500 opacity-100"
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-white/10 rounded-lg" />
+                        )}
                       </div>
-                    )}
-                    {wlOverview ? (
-                      <p className="mt-1 text-[12px] text-zinc-400 line-clamp-3 leading-snug">
-                        {wlOverview}
-                      </p>
-                    ) : null}
-                  </div>
+
+                      <div className="min-w-0 flex-1 flex flex-col justify-center text-left pr-1">
+                        <div
+                          className="text-sm font-semibold leading-tight text-white"
+                          style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {wlCurrent?.title || ""}
+                        </div>
+                        {wlRelease && (
+                          <div className="text-[11px] text-zinc-400 mt-1">
+                            {new Date(wlRelease).toLocaleDateString()}
+                          </div>
+                        )}
+                        {wlOverview ? (
+                          <p
+                            className="mt-2 text-[12px] text-zinc-400 leading-snug"
+                            style={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 8,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {wlOverview}
+                          </p>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex-1 flex items-center justify-center w-full">
+                        <div
+                          className={`
+                            w-full max-w-[360px] mx-auto
+                            md:w-[72%] md:h-[72%] md:aspect-[2/3] md:max-w-none
+                            sm:h-[86%] sm:w-[78%]
+                          `}
+                        >
+                          {wlPoster ? (
+                            <TmdbImage
+                              key={`${wlCurrent?.id || wlCurrent?.movie_id}-${wlIndex}`}
+                              src={wlPoster}
+                              alt={wlCurrent?.title || "Poster"}
+                              className="h-full w-full"
+                              imgClassName="h-full w-full object-contain rounded-lg shadow-lg transition-opacity duration-500 opacity-100"
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-white/10 rounded-lg" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 w-full text-center">
+                        <div className="text-sm font-semibold line-clamp-1">
+                          {wlCurrent?.title || ""}
+                        </div>
+                        {wlRelease && (
+                          <div className="text-[11px] text-zinc-400 mt-0.5">
+                            {new Date(wlRelease).toLocaleDateString()}
+                          </div>
+                        )}
+                        {wlOverview ? (
+                          <p
+                            className="mt-1 text-[12px] text-zinc-400 leading-snug"
+                            style={{
+                              display: "-webkit-box",
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {wlOverview}
+                          </p>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
                 </Link>
               </div>
             )}
@@ -1198,6 +1300,7 @@ export default function HomeSignedIn() {
           homeClub={club}
           homeClubImage={clubImage}
           homeClubLoading={clubLoading}
+          isStandalonePwa={isStandalonePwa}
         />
       </div>
 

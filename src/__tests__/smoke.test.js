@@ -16,7 +16,7 @@ describe("Smoke tests", () => {
       </HelmetProvider>
     );
 
-    expect(screen.getByRole("heading", { name: /terms and conditions/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /terms.*conditions/i })).toBeInTheDocument();
     expect(screen.getByText(/last updated:/i)).toBeInTheDocument();
   });
 

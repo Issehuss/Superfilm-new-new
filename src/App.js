@@ -15,6 +15,7 @@ import debounce from "lodash.debounce";
 import { Toaster } from "react-hot-toast";
 import { trackPageView } from "./lib/analytics";
 import BetaBanner from "./components/BetaBanner";
+import CookieConsent from "./components/CookieConsent";
 import { Home as HomeIcon, Users, Film, User as UserIcon } from "lucide-react";
 import PwaUpdateToast from "./components/PwaUpdateToast";
 import PwaInstallPrompt from "./components/PwaInstallPrompt";
@@ -78,6 +79,13 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const UserSearchPage = lazy(() => import("./pages/UserSearchPage.jsx"));
 const TermsPage = lazy(() => import("./pages/Terms.jsx"));
+const PrivacyPage = lazy(() => import("./pages/Privacy.jsx"));
+const CookiePolicyPage = lazy(() => import("./pages/CookiePolicy.jsx"));
+const AcceptableUsePage = lazy(() => import("./pages/AcceptableUse.jsx"));
+const CommunityGuidelinesPage = lazy(() => import("./pages/CommunityGuidelines.jsx"));
+const BillingTermsPage = lazy(() => import("./pages/BillingTerms.jsx"));
+const DataRetentionPage = lazy(() => import("./pages/DataRetention.jsx"));
+const SubprocessorsPage = lazy(() => import("./pages/Subprocessors.jsx"));
 const HelpPage = lazy(() => import("./pages/HelpPage.jsx"));
 const OurSocialsPage = lazy(() => import("./pages/OurSocials.jsx"));
 const ProfileFollows = lazy(() => import("./pages/ProfileFollows.jsx"));
@@ -121,7 +129,13 @@ function ClubSingularRedirect() {
 
 function PageViewTracker() {
   const location = useLocation();
+  const didMountRef = useRef(false);
   useEffect(() => {
+    // Initial page view is triggered after analytics is enabled via CookieConsent.
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     const path = `${location.pathname}${location.search || ""}`;
     trackPageView(path);
   }, [location.pathname, location.search]);
@@ -302,6 +316,7 @@ export default function AppWrapper() {
       <UserProvider>
         <HelmetProvider>
           <Router>
+            <CookieConsent />
             <PageViewTracker />
             <BetaBanner />
             <Routes>
@@ -570,104 +585,73 @@ function MainShell() {
         </div>
       )}
       {/* ===== Header ===== */}
-      <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur border-b border-white/10 relative">
-  <div className="w-full flex items-center h-14 sm:h-16">
-    
-    {/* LEFT: SuperFilm logo */}
-    <div className="flex-shrink-0 pl-3 sm:pl-4 md:pl-6">
-      <NavLink
-        to="/"
-        end
-        aria-label="Go to SuperFilm Home"
-        className={({ isActive }) =>
-          [
-            "group relative flex items-center gap-2",
-            "text-xl sm:text-2xl md:text-3xl font-bold tracking-wide",
-            "text-zinc-200 hover:text-white transition-colors",
-            "after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-yellow-400",
-            "after:transition-[width] after:duration-300 group-hover:after:w-full",
-            isActive ? "text-white after:w-full" : "",
-          ].join(" ")
-        }
-      >
-        <div className="flex items-center gap-2">
-          <span>SuperFilm</span>
-          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-yellow-300/90 border border-yellow-300/30 rounded-full px-1.5 py-[2px] sm:px-2 sm:py-[3px] bg-yellow-300/10">
-            Beta
-          </span>
-        </div>
-        <img
-          src="/superfilm-logo.png"
-          alt=""
-          aria-hidden="true"
-          className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 object-contain"
-          draggable="false"
-        />
-      </NavLink>
-    </div>
+      <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur border-b border-white/10">
+        <div className="w-full flex items-center h-14 sm:h-16">
+          {/* LEFT: SuperFilm logo */}
+          <div className="flex-shrink-0 pl-3 sm:pl-4 md:pl-6">
+            <NavLink
+              to="/"
+              end
+              aria-label="Go to SuperFilm Home"
+              className={({ isActive }) =>
+                [
+                  "group relative flex items-center gap-2",
+                  "text-xl sm:text-2xl md:text-3xl font-bold tracking-wide",
+                  "text-zinc-200 hover:text-white transition-colors",
+                  "after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-yellow-400",
+                  "after:transition-[width] after:duration-300 group-hover:after:w-full",
+                  isActive ? "text-white after:w-full" : "",
+                ].join(" ")
+              }
+            >
+              <div className="flex items-center gap-2">
+                <span>SuperFilm</span>
+                <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.18em] text-yellow-300/90 border border-yellow-300/30 rounded-full px-1.5 py-[2px] sm:px-2 sm:py-[3px] bg-yellow-300/10">
+                  Beta
+                </span>
+              </div>
+              <img
+                src="/superfilm-logo.png"
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 object-contain"
+                draggable="false"
+              />
+            </NavLink>
+          </div>
 
+          {/* CENTER: Primary nav */}
+          <div className="hidden sm:flex flex-1 min-w-0 justify-start pl-6 lg:pl-10">
+            <nav className="flex" aria-label="Primary navigation">
+              <ul className="flex items-center gap-4 lg:gap-6 whitespace-nowrap">
+                <li>
+                  <NavLink to="/" end className={({ isActive }) => linkClass(isActive)}>
+                    Home
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/clubs" className={({ isActive }) => linkClass(isActive)}>
+                    Discover
+                  </NavLink>
+                </li>
+                <li>
+                  <Suspense fallback={null}>
+                    <ClubSwitcher />
+                  </Suspense>
+                </li>
+                <li>
+                  <NavLink to="/movies" className={({ isActive }) => linkClass(isActive)}>
+                    Movies
+                  </NavLink>
+                </li>
+              </ul>
+            </nav>
+          </div>
 
-    {/* RIGHT: bell + account menu */}
-    <div className="ml-auto flex items-center gap-2 sm:gap-3 pr-3 sm:pr-4 md:pr-6">
-      {user && (
-        <Suspense fallback={null}>
-          <NotificationsBell />
-        </Suspense>
-      )}
-
-      <NavActions />
-    </div>
-
-  </div>
-
-  {/* Center: nav + search aligned to content width */}
-  <div className="pointer-events-none absolute inset-0 flex items-center">
-    <nav className="hidden sm:block w-full" aria-label="Primary navigation">
-      <div className="mx-auto max-w-6xl w-full px-6 pointer-events-auto">
-        <div className="flex items-center justify-between gap-6 w-full">
-          <ul className="flex items-center flex-1 justify-between pr-6">
-            {/* Home */}
-            <li>
-              <NavLink
-                to="/"
-                end
-                className={({ isActive }) => linkClass(isActive)}
-              >
-                Home
-              </NavLink>
-            </li>
-
-            {/* Clubs */}
-            <li>
-              <NavLink
-                to="/clubs"
-                className={({ isActive }) => linkClass(isActive)}
-              >
-                Discover
-              </NavLink>
-            </li>
-
-            {/* My Clubs dropdown (ClubSwitcher) */}
-            <li>
-              <Suspense fallback={null}>
-                <ClubSwitcher />
-              </Suspense>
-            </li>
-
-            {/* Movies */}
-            <li>
-              <NavLink
-                to="/movies"
-                className={({ isActive }) => linkClass(isActive)}
-              >
-                Movies
-              </NavLink>
-            </li>
-          </ul>
-
-          {/* Search bar */}
-          <div className="hidden md:flex items-center justify-end">
-            <div className="flex items-center rounded-full bg-zinc-800 ring-1 ring-white/10 px-2">
+          {/* RIGHT: Search + actions */}
+          <div className="ml-auto flex items-center gap-2 sm:gap-3 pr-3 sm:pr-4 md:pr-6">
+            {/* Search (hide first on tighter widths) */}
+            <div className="hidden xl:flex items-center rounded-full bg-zinc-800 ring-1 ring-white/10 px-2">
               <input
                 type="text"
                 value={rawQuery}
@@ -680,7 +664,7 @@ function MainShell() {
                 }
                 className="
                   bg-transparent text-white placeholder-zinc-400 rounded-full 
-                  px-3 py-2 w-48 lg:w-60
+                  px-3 py-2 w-28 md:w-36 lg:w-48 xl:w-48 2xl:w-60
                   outline-none
                   transition-all duration-300
                   focus:ring-0
@@ -714,12 +698,17 @@ function MainShell() {
                 </button>
               </div>
             </div>
+
+            {user && (
+              <Suspense fallback={null}>
+                <NotificationsBell />
+              </Suspense>
+            )}
+
+            <NavActions />
           </div>
         </div>
-      </div>
-    </nav>
-  </div>
-</header>
+      </header>
 
 
 
@@ -886,6 +875,15 @@ function MainShell() {
             <Route path="/clubs" element={<Clubs />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/terms-and-conditions" element={<Navigate to="/terms" replace />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/privacy-policy" element={<Navigate to="/privacy" replace />} />
+            <Route path="/cookie-policy" element={<CookiePolicyPage />} />
+            <Route path="/acceptable-use" element={<AcceptableUsePage />} />
+            <Route path="/community-guidelines" element={<CommunityGuidelinesPage />} />
+            <Route path="/billing-terms" element={<BillingTermsPage />} />
+            <Route path="/data-retention" element={<DataRetentionPage />} />
+            <Route path="/subprocessors" element={<SubprocessorsPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/socials" element={<OurSocialsPage />} />
             <Route path="/auth/forgot" element={<ForgotPassword />} />

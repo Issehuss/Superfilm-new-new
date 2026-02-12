@@ -379,6 +379,15 @@ export default function ClubSettings() {
             </div>
 
             {saving && <p className="mt-2 text-xs text-zinc-400">Saving…</p>}
+
+            {presidentHasPremium && club.wants_private && (
+              <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2">
+                <p className="text-xs text-amber-100">
+                  Private Mode limits discovery, but clubs remain subject to content moderation by
+                  SuperFilm partners.
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <p className="text-xs text-zinc-500">

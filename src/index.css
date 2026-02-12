@@ -61,6 +61,19 @@ header nav a:focus {
 .hide-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 
+/* ───────────────────────── Signup helpers ───────────────────────── */
+.signup-age-note {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.signup-error {
+  color: #ff4d4f;
+  font-size: 13px;
+  margin-top: 6px;
+}
+
 /* 3D helpers for flip cards (TasteCard) */
 .perspective { perspective: 1000px; }
 .transform-style-preserve-3d { transform-style: preserve-3d; }

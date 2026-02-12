@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async";
 import "./Events.css";
 import supabase from "lib/supabaseClient";
 import useRealtimeResume from "../hooks/useRealtimeResume";
+import { useUser } from "../context/UserContext";
 
 const EVENTS_CACHE_KEY = "cache:events:v1";
 const EVENTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -20,6 +21,7 @@ const EVENTS_SELECT_FULL = [
   "summary",
   "club_id",
   "club_name",
+  "is_hidden",
   "lat",
   "lon",
   "city_name",
@@ -33,7 +35,40 @@ const EVENTS_SELECT_MIN = [
   "poster_url",
   "club_id",
   "club_name",
+  "is_hidden",
 ].join(", ");
+const EVENTS_SELECT_MIN_NO_HIDDEN = [
+  "id",
+  "slug",
+  "title",
+  "date",
+  "venue",
+  "poster_url",
+  "club_id",
+  "club_name",
+].join(", ");
+
+function isStandalonePwaMode() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function isMissingSelectColumn(err, columnName) {
+  const m = (err?.message || "").toLowerCase();
+  const c = String(columnName || "").toLowerCase();
+  return (
+    m.includes(`'${c}' column`) ||
+    m.includes(`"${c}"`) ||
+    m.includes(`.${c}`) ||
+    m.includes(` ${c} `) ||
+    m.includes(` ${c}.`) ||
+    m.includes(` ${c},`) ||
+    m.includes(` ${c})`)
+  );
+}
 
 function readEventsCache() {
   try {
@@ -77,10 +112,11 @@ function mapRowToEvent(row) {
 
   return {
     id: String(row.id),
-    slug: row.slug ?? row.event_slug ?? "",   // <-- ADD THIS LINE
+    slug: row.slug ?? row.event_slug ?? "",
     title: row.title ?? "Untitled Event",
     date: dateIso ? new Date(dateIso).toISOString() : new Date().toISOString(),
     venue: row.venue ?? row.location ?? "Venue",
+    is_hidden: Boolean(row.is_hidden),
     posterUrl:
       row.poster_url ?? FALLBACK_EVENT_IMAGE,
     tags: Array.isArray(row.tags)
@@ -98,7 +134,7 @@ function mapRowToEvent(row) {
 }
 
 /* ---------------- Small Card ---------------- */
-function PosterCard({ evt }) {
+function PosterCard({ evt, isGoing, moderationView }) {
   const d = new Date(evt.date);
   const month = d.toLocaleString(undefined, { month: "short" });
   const day = d.getDate();
@@ -123,6 +159,17 @@ function PosterCard({ evt }) {
             <div className="m">{month}</div>
             <div className="d">{day}</div>
           </div>
+          {isGoing && (
+            <div className="poster-going-badge" aria-label="You are going to this event">
+              <span className="poster-going-dot" aria-hidden="true" />
+              Going
+            </div>
+          )}
+          {moderationView && evt.is_hidden && (
+            <div className="poster-hidden-badge" aria-label="Hidden event (visible in moderation view)">
+              Hidden
+            </div>
+          )}
         </div>
         <div className="poster-info">
           <h3 className="title">{evt.title}</h3>
@@ -146,14 +193,25 @@ function PosterCard({ evt }) {
 
 /* ---------------- Page ---------------- */
 export default function Events() {
+  const { user, sessionLoaded } = useUser();
   const cached = readEventsCache();
   const [liveEvents, setLiveEvents] = useState(cached || []);
   const [loadingLive, setLoadingLive] = useState(!cached);
   const [query, setQuery] = useState("");
+  const [isStandalonePwa, setIsStandalonePwa] = useState(() =>
+    isStandalonePwaMode()
+  );
   const resumeTick = useRealtimeResume();
+  const [goingEventIds, setGoingEventIds] = useState(() => new Set());
+  const [isSiteMod, setIsSiteMod] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
+  const moderationParam = useMemo(() => {
+    const params = new URLSearchParams(location.search || "");
+    return params.get("moderation");
+  }, [location.search]);
+  const moderationView = Boolean(isSiteMod && moderationParam === "1");
 
   // Accept a new event from /events/new via location.state
   useEffect(() => {
@@ -184,11 +242,6 @@ export default function Events() {
   useEffect(() => {
     let mounted = true;
 
-    if (cached?.length) {
-      setLiveEvents(cached);
-      setLoadingLive(false);
-    }
-
     (async () => {
       try {
         let mapped = [];
@@ -205,13 +258,27 @@ export default function Events() {
         } catch (primaryErr) {
           console.warn("[events] primary fetch failed, retrying:", primaryErr?.message || primaryErr);
           // Fallback: conservative column list to avoid 400s on missing columns
-          const { data, error } = await supabase
-            .from("events")
-            .select(EVENTS_SELECT_MIN)
-            .order("date", { ascending: true })
-            .limit(300);
-          if (error) throw error;
-          mapped = (data || []).map(mapRowToEvent);
+          try {
+            const { data, error } = await supabase
+              .from("events")
+              .select(EVENTS_SELECT_MIN)
+              .order("date", { ascending: true })
+              .limit(300);
+            if (error) throw error;
+            mapped = (data || []).map(mapRowToEvent);
+          } catch (secondaryErr) {
+            if (isMissingSelectColumn(secondaryErr, "is_hidden")) {
+              const { data, error } = await supabase
+                .from("events")
+                .select(EVENTS_SELECT_MIN_NO_HIDDEN)
+                .order("date", { ascending: true })
+                .limit(300);
+              if (error) throw error;
+              mapped = (data || []).map(mapRowToEvent);
+            } else {
+              throw secondaryErr;
+            }
+          }
         }
 
         const sorted = mapped.sort(
@@ -270,8 +337,98 @@ export default function Events() {
     };
   }, [resumeTick]);
 
+  useEffect(() => {
+    const media = window.matchMedia?.("(display-mode: standalone)");
+    const syncStandalone = () => setIsStandalonePwa(isStandalonePwaMode());
+    syncStandalone();
+
+    if (media?.addEventListener) media.addEventListener("change", syncStandalone);
+    else if (media?.addListener) media.addListener(syncStandalone);
+
+    return () => {
+      if (media?.removeEventListener) media.removeEventListener("change", syncStandalone);
+      else if (media?.removeListener) media.removeListener(syncStandalone);
+    };
+  }, []);
+
+  // Determine if the current user is a site moderator (admin/moderator role).
+  useEffect(() => {
+    if (!sessionLoaded) return;
+    let cancelled = false;
+    const SITE_ROLES = new Set(["admin", "moderator"]);
+
+    (async () => {
+      const { data: auth } = await supabase.auth.getSession();
+      const sessionUserId = auth?.session?.user?.id || null;
+      const resolvedUserId = user?.id || sessionUserId;
+      if (!resolvedUserId) {
+        if (!cancelled) setIsSiteMod(false);
+        return;
+      }
+
+      try {
+        const { data: prof, error } = await supabase
+          .from("profiles")
+          .select("roles")
+          .eq("id", resolvedUserId)
+          .maybeSingle();
+        if (error) throw error;
+        const roles = Array.isArray(prof?.roles) ? prof.roles : [];
+        const ok = roles.some((r) => SITE_ROLES.has(String(r).toLowerCase()));
+        if (!cancelled) setIsSiteMod(ok);
+      } catch (e) {
+        console.warn("[Events] failed to resolve moderator role:", e?.message || e);
+        if (!cancelled) setIsSiteMod(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionLoaded, user?.id]);
+
+  // Load the current user's RSVPs so the list can show "Going" badges.
+  useEffect(() => {
+    if (!sessionLoaded) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data: auth } = await supabase.auth.getSession();
+      const sessionUserId = auth?.session?.user?.id || null;
+      const resolvedUserId = user?.id || sessionUserId;
+
+      if (!resolvedUserId) {
+        if (!cancelled) setGoingEventIds(new Set());
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("event_rsvps")
+          .select("event_id, status")
+          .eq("user_id", resolvedUserId);
+
+        if (error) throw error;
+
+        const next = new Set(
+          (data || [])
+            .filter((r) => (r.status || "going") === "going")
+            .map((r) => String(r.event_id))
+        );
+        if (!cancelled) setGoingEventIds(next);
+      } catch (e) {
+        console.warn("[Events] failed to load my RSVPs:", e?.message || e);
+        if (!cancelled) setGoingEventIds(new Set());
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionLoaded, user?.id, resumeTick]);
+
   // Only live events — no mock fallback
-  const base = liveEvents;
+  const base = moderationView ? liveEvents : liveEvents.filter((event) => !event.is_hidden);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -284,6 +441,21 @@ export default function Events() {
     );
   }, [base, query]);
 
+  const toggleModerationView = () => {
+    if (!isSiteMod) return;
+    const params = new URLSearchParams(location.search || "");
+    if (moderationView) params.delete("moderation");
+    else params.set("moderation", "1");
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true }
+    );
+  };
+
   return (
     <>
       <Helmet>
@@ -295,9 +467,9 @@ export default function Events() {
         <link rel="canonical" href="https://superfilm.uk/events" />
       </Helmet>
 
-      <div className="events-page">
+      <div className={`events-page ${isStandalonePwa ? "events-page-pwa" : ""}`}>
         <header className="page-head">
-          <div>
+          <div className="head-copy">
             <h1 className="text-3xl font-bold">Events</h1>
             <p className="text-zinc-400 mt-1">
               {loadingLive
@@ -313,15 +485,32 @@ export default function Events() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <Link to="/events/new" className="btn primary">
-              List Event
-            </Link>
+            <div className="head-cta-row">
+              {isSiteMod && (
+                <button
+                  type="button"
+                  onClick={toggleModerationView}
+                  className="btn ghost"
+                  title="Moderation view can see hidden events"
+                >
+                  {moderationView ? "Exit Mod View" : "Mod View"}
+                </button>
+              )}
+              <Link to="/events/new" className="btn primary">
+                List Event
+              </Link>
+            </div>
           </div>
         </header>
 
         <section className="poster-grid">
           {filtered.map((evt) => (
-            <PosterCard key={`${evt.slug}`} evt={evt} />
+            <PosterCard
+              key={`${evt.slug}`}
+              evt={evt}
+              isGoing={goingEventIds.has(String(evt.id))}
+              moderationView={moderationView}
+            />
           ))}
           {filtered.length === 0 && !loadingLive && (
             <div className="empty">No events found.</div>

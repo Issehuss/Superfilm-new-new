@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import FooterMoreMenu from "../components/FooterMoreMenu";
 
 /* -------------------------------------------------------------------------- */
 /*                             About Page Component                           */
@@ -34,35 +35,30 @@ export default function AboutPage() {
           indulge in.
         </p>
 
-        <p className="text-lg leading-relaxed mb-4 text-zinc-200 drop-shadow-md">
-          This started off as a passion project and it will always be that. This
-          is something we genuinely enjoy working on, and it brings us great
-          pleasure thinking about the way it can be used, and what it will
-          become.
-        </p>
+        
 
         <p className="text-lg leading-relaxed mb-4 text-zinc-200 drop-shadow-md">
           To make it clear, we champion the lone cinema experience. In fact,
           this was how SuperFilm came about. We both love
           going solo, but seeing groups of other people watch the same film and
-          revel in joy about the film, from the outside, does get quite lonely.
+          revel in joy about it, from the outside, does get quite lonely.
         </p>
 
         <p className="text-lg leading-relaxed mb-4 text-zinc-200 drop-shadow-md">
           The difficulty of going up to someone and talking to them cannot be
-          understated, but the burst of jubilation as a result of engaging in
-          these talks concerning these very films also cannot be understated.
+          understated, but the relief from conversing with others about these films
+          is encouraging.
         </p>
 
         <p className="text-lg leading-relaxed mb-8 text-zinc-200 drop-shadow-md">
           So, SuperFilm, despite being created with many goals in mind, will
           always come back to one: prioritising human connection. Because what
-          can be greater than experiencing an incredible film alone?
+          can be greater than experiencing an incredible film alone?  Doing it together.
         </p>
 
         {/* Dramatic final line (no animation) */}
         <p className="text-2xl leading-relaxed mt-6 text-superfilm-yellow font-extrabold tracking-wider text-center">
-          <strong>Doing it TOGETHER.</strong>
+          <strong></strong>
         </p>
         </div>
       </div>
@@ -79,34 +75,33 @@ export function SuperFilmFooter() {
     <footer className="w-full border-t border-zinc-800 text-xs text-zinc-500 py-4 mt-10 bg-black">
       <div className="mx-auto max-w-6xl w-full px-4 flex flex-col md:flex-row items-center justify-between gap-3">
         {/* Left side: links */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Link to="/discover" className="hover:text-superfilm-yellow">
-            Discover
-          </Link>
-          <Link to="/clubs" className="hover:text-superfilm-yellow">
-            Clubs
-          </Link>
-          <Link to="/movies" className="hover:text-superfilm-yellow">
-            Movies
-          </Link>
-          <Link to="/events" className="hover:text-superfilm-yellow">
-            Events
-          </Link>
-          <Link to="/leaderboard" className="hover:text-superfilm-yellow">
-            Leaderboard
-          </Link>
-          <Link to="/about" className="hover:text-superfilm-yellow">
-            About Us
-          </Link>
-          <Link to="/socials" className="hover:text-superfilm-yellow">
-            Our Socials
-          </Link>
-          <Link to="/terms" className="hover:text-superfilm-yellow">
-            Terms &amp; Conditions
-          </Link>
-          <Link to="/help" className="hover:text-superfilm-yellow">
-            Help
-          </Link>
+        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-x-4">
+          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
+            <Link to="/about" className="hover:text-superfilm-yellow">
+              About Us
+            </Link>
+            <Link to="/socials" className="hover:text-superfilm-yellow">
+              Our Socials
+            </Link>
+            <Link to="/help" className="hover:text-superfilm-yellow">
+              Help
+            </Link>
+          </div>
+
+          <div className="hidden md:block h-3 w-px bg-white/10" aria-hidden="true" />
+
+          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-x-4 md:gap-y-0">
+            <Link to="/terms" className="hover:text-superfilm-yellow">
+              Terms &amp; Conditions
+            </Link>
+            <Link to="/privacy" className="hover:text-superfilm-yellow">
+              Privacy Policy
+            </Link>
+            <Link to="/cookie-policy" className="hover:text-superfilm-yellow">
+              Cookie Policy
+            </Link>
+            <FooterMoreMenu />
+          </div>
         </div>
 
         {/* Right side: copyright */}
